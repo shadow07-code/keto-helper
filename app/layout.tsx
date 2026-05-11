@@ -21,6 +21,16 @@ const lato = Lato({
 export const metadata: Metadata = {
   title: 'KetoHelper — Is it Keto?',
   description: 'AI-powered keto compliance checker with macro analysis.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'KetoHelper',
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

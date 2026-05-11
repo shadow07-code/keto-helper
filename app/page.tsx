@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Label, ResponsiveContainer } from 'recharts'
 import { type MacroValues, type MealEntry, saveEntry, loadHistory } from './lib/history'
+import AddToHomeScreen from './components/AddToHomeScreen'
 
 /* ─── Types ──────────────────────────────────────────────── */
 interface MacroPct { carbs_pct: number; protein_pct: number; fat_pct: number }
@@ -304,6 +305,11 @@ export default function Home() {
       }}>
         <div className="absolute top-0 left-[6%] right-[6%] h-[1.5px] opacity-60"
           style={{ background: 'linear-gradient(to right, transparent, #C9A84C, transparent)' }} />
+
+        {/* Add to Home Screen CTA */}
+        <div className="flex justify-end mb-2 pt-1">
+          <AddToHomeScreen />
+        </div>
 
         {/* Header */}
         <header className="text-center mb-8 sm:mb-10 pt-2">
