@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-lato), sans-serif;
+  background: #253D31;
+  min-height: 100vh;
+}
+
+/* ─── SVG Ring arcs (animated via CSS variable) ────── */
+.ring-track {
+  fill: none;
+  stroke: #E8DCC8;
+  stroke-width: 7;
+}
+
+.ring-arc {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 201.1;          /* 2π × 32 */
+  stroke-dashoffset: var(--offset, 201.1);
+  transition: stroke-dashoffset 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.arc-carbs   { stroke: #D4714A; }
+.arc-protein { stroke: #4A7C59; }
+.arc-fat     { stroke: #C9A84C; }
+
+.score-track {
+  fill: none;
+  stroke: #E8DCC8;
+  stroke-width: 8;
+}
+.score-arc {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 263.9;          /* 2π × 42 */
+  stroke-dashoffset: var(--offset, 263.9);
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 0.4s;
+}
+
+/* ─── Watercolor border strips ─────────────────────── */
+.border-strip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.border-strip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(201,168,76,0.12) 0%,
+    transparent 40%,
+    transparent 60%,
+    rgba(201,168,76,0.12) 100%
+  );
+  pointer-events: none;
+}
+
+.border-strip span {
+  display: inline-block;
+  filter: saturate(0.65) brightness(0.88) drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  opacity: 0.85;
+  transition: opacity 0.3s, transform 0.3s;
+  line-height: 1;
+  user-select: none;
+}
+.border-strip span:hover {
+  opacity: 1;
+  transform: scale(1.18);
+}
+
+/* ─── Fade-in animation for results ────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+.animate-fade-up {
+  animation: fadeUp 0.42s ease both;
+}
+
+/* ─── Bottom navigation bar ─────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 64px;
+  background: #FAF6EF;
+  border-top: 1px solid #E8DCC8;
+  display: flex;
+  align-items: stretch;
+  z-index: 50;
+  box-shadow: 0 -2px 12px rgba(37,61,49,0.08);
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #8A9280;
+  text-decoration: none;
+  border-top: 2px solid transparent;
+  transition: color 0.18s, border-color 0.18s;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.nav-tab:hover { color: #4A7C59; }
+
+.nav-tab[data-active='true'] {
+  color: #2D4A3E;
+  border-top-color: #C9A84C;
+}
+
+.nav-icon { line-height: 1; }
+
+.nav-label {
+  font-family: var(--font-lato), sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ─── Spinner ───────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
+}
