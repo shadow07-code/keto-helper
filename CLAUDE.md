@@ -32,8 +32,10 @@ Next.js 15 App Router, TypeScript, Tailwind CSS, Recharts. Three client-side pag
 
 ### API routes
 
-- **`/api/analyze`** — POST `{ food_input: string }` → full `NutritionData` JSON. Calls `claude-sonnet-4-6` with a structured keto-scoring prompt. Returns per-100g and per-quantity macros, keto score 1–10, recommendation, and keto alternatives when score ≤ 6.
-- **`/api/vision`** — POST `{ image_data: string (base64), media_type: string }` → `{ detected_food, estimated_weight_g, confidence }`. Used to pre-fill the food input from a photo.
+- **`/api/analyze`** — POST `{ food_input: string }` → full `NutritionData` JSON. Calls `claude-sonnet-4-6` with a structured keto-scoring prompt. Returns per-100g and per-quantity macros, keto score 1–10, recommendation, and keto alternatives when score ≤ 6. Validates all returned numeric fields (clamps negatives, NaN, Infinity).
+- **`/api/vision`** — POST `{ image_data: string (base64), media_type: string }` → `{ detected_food, estimated_weight_g, confidence }`. Used to pre-fill the food input from a photo. Client rejects files over 5 MB before upload.
+
+Both routes share `app/api/_rateLimit.ts` — an **in-memory** rate limiter (20 req/min per IP). **This does not work on Vercel** (each serverless invocation may get a fresh instance). Replace with Upstash Redis + `@upstash/ratelimit` before multi-user deployment.
 
 ### Shared state — `app/lib/history.ts`
 
@@ -69,3 +71,12 @@ Past Meals page renders 5 charts — all wrapped in `<ResponsiveContainer width=
 5. Daily Macros grams stacked bar chart
 
 Charts only render when `chartData.length >= 2` (i.e. data from at least 2 different calendar days).
+
+### PWA / Add to Home Screen
+
+`public/manifest.json` + `public/icon.svg` make the app installable. Meta tags are set via Next.js `metadata.appleWebApp` in `app/layout.tsx`.
+
+`app/components/AddToHomeScreen.tsx` renders a pill button at the top-right of the Analyse page:
+- **Android/Chrome** — captures `beforeinstallprompt`, triggers native install sheet on click. Only fires over HTTPS, so the button is invisible in local dev.
+- **iOS Safari** — detects via user-agent, shows a tooltip with Share → "Add to Home Screen" instructions.
+- Hides permanently if already in standalone mode or if the user dismisses it (flag stored under `keto_a2hs_dismissed` in localStorage).
