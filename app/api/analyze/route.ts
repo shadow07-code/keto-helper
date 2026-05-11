@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit } from '../_rateLimit'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -52,6 +53,15 @@ Return this exact JSON (raw, no fences):
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const { allowed, retryAfterSecs } = checkRateLimit(ip)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Too many requests — please wait ${retryAfterSecs}s before trying again.` },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSecs) } }
+    )
+  }
+
   try {
     const body = await req.json()
     const food_input: string = (body?.food_input ?? '').trim()
@@ -77,6 +87,24 @@ export async function POST(req: NextRequest) {
     }
 
     const result = JSON.parse(text)
+
+    // Validate required numeric fields are finite and non-negative
+    const macroFields = ['calories', 'carbs_g', 'protein_g', 'fat_g', 'fiber_g', 'net_carbs_g']
+    for (const section of ['per_100g', 'per_quantity'] as const) {
+      for (const field of macroFields) {
+        const v = result[section]?.[field]
+        if (typeof v !== 'number' || !isFinite(v) || v < 0) {
+          result[section][field] = 0
+        }
+      }
+    }
+    if (typeof result.keto_score !== 'number' || result.keto_score < 1 || result.keto_score > 10) {
+      result.keto_score = Math.max(1, Math.min(10, Math.round(result.keto_score ?? 5)))
+    }
+    if (typeof result.parsed_quantity_g !== 'number' || result.parsed_quantity_g <= 0) {
+      result.parsed_quantity_g = 100
+    }
+
     return NextResponse.json(result)
 
   } catch (err: unknown) {

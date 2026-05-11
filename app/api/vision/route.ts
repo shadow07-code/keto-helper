@@ -1,9 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit } from '../_rateLimit'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const { allowed, retryAfterSecs } = checkRateLimit(ip)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Too many requests — please wait ${retryAfterSecs}s before trying again.` },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSecs) } }
+    )
+  }
+
   try {
     const body = await req.json()
     const { image_data, media_type } = body

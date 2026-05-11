@@ -108,7 +108,7 @@ export default function PastPage() {
                       <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} />
                       <Tooltip
                         contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v: number) => [`${v}g`, 'Net Carbs']}
+                        formatter={(v) => [`${v}g`, 'Net Carbs']}
                       />
                       <ReferenceLine y={20} stroke="#D4714A" strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value: 'Keto limit 20g', position: 'insideTopRight', fontSize: 9, fill: '#D4714A' }} />
@@ -126,7 +126,7 @@ export default function PastPage() {
                       <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} />
                       <Tooltip
                         contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v: number) => [`${v} kcal`, 'Calories']}
+                        formatter={(v) => [`${v} kcal`, 'Calories']}
                       />
                       <ReferenceLine y={1800} stroke="#C9A84C" strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value: '1800 kcal target', position: 'insideTopRight', fontSize: 9, fill: '#C9A84C' }} />
@@ -144,7 +144,7 @@ export default function PastPage() {
                       <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} domain={[0, 100]} />
                       <Tooltip
                         contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v: number, name: string) => [`${v}%`, name]}
+                        formatter={(v, name) => [`${v}%`, name]}
                       />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
                       <Area type="monotone" dataKey="fatPct"     stackId="1" name="Fat"     stroke="#C9A84C" fill="#C9A84C" fillOpacity={0.7} />
@@ -162,7 +162,7 @@ export default function PastPage() {
                       <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: '#8A9280' }} />
                       <Tooltip
                         contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v: number) => [v, 'Avg Keto Score']}
+                        formatter={(v) => [v, 'Avg Keto Score']}
                       />
                       <ReferenceLine y={7} stroke="#4A7C59" strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value: 'Keto threshold', position: 'insideTopRight', fontSize: 9, fill: '#4A7C59' }} />
@@ -183,7 +183,7 @@ export default function PastPage() {
                       <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} />
                       <Tooltip
                         contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v: number, name: string) => [`${v}g`, name]}
+                        formatter={(v, name) => [`${v}g`, name]}
                       />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
                       <Bar dataKey="fat"        name="Fat"     stackId="a" fill="#C9A84C" />

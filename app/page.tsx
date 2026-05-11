@@ -94,9 +94,10 @@ function MacroDonut({ pct, vals }: {
           </Pie>
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8', background: '#FAF6EF' }}
-            formatter={(v: number, _: string, p: { payload: { label: string; grams: number } }) =>
-              [`${v}%  ·  ${fmt(p.payload.grams)} g`, p.payload.label]
-            }
+            formatter={(v, _, entry) => {
+              const pl = (entry as { payload?: { label: string; grams: number } }).payload
+              return pl ? [`${v}%  ·  ${fmt(pl.grams)} g`, pl.label] : [`${v}%`, '']
+            }}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -211,6 +212,12 @@ export default function Home() {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = '' // allow re-selecting same file
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Photo is too large — please use an image under 5 MB.')
+      e.target.value = ''
+      return
+    }
 
     setPhotoLoading(true)
     setError('')
