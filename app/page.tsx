@@ -74,15 +74,18 @@ function MacroDonut({ pct, vals }: {
             {sliceData.map((s, i) => <Cell key={i} fill={s.color} />)}
             <Label
               content={({ viewBox }) => {
-                const vb = viewBox as { cx: number; cy: number }
+                const vb = viewBox as { cx?: number; cy?: number }
+                const cx = vb?.cx ?? 0
+                const cy = vb?.cy ?? 0
+                if (!cx || !cy) return <g />
                 return (
                   <g>
-                    <text x={vb.cx} y={vb.cy - 8} textAnchor="middle"
+                    <text x={cx} y={cy - 8} textAnchor="middle"
                       fill="#2D4A3E" fontSize={26} fontWeight={700}
                       fontFamily="var(--font-playfair), serif">
                       {kcal}
                     </text>
-                    <text x={vb.cx} y={vb.cy + 12} textAnchor="middle"
+                    <text x={cx} y={cy + 12} textAnchor="middle"
                       fill="#8A9280" fontSize={9} fontWeight={700} letterSpacing={2}>
                       KCAL
                     </text>
