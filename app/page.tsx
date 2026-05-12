@@ -255,27 +255,26 @@ export default function Home() {
   return (
     <div className="relative min-h-screen" style={{
       background: 'radial-gradient(ellipse at 20% 20%, #3B6B4E 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, #1E3A2E 0%, transparent 55%), linear-gradient(160deg, #2E5240 0%, #1E3228 50%, #253D31 100%)',
-      padding: 'clamp(40px, 6vw, 88px)',
+      paddingTop: 0,
+      paddingBottom: 0,
+      paddingLeft: 'clamp(40px, 6vw, 88px)',
+      paddingRight: 'clamp(40px, 6vw, 88px)',
     }}>
-      {/* Gold corners */}
-      <span className="absolute top-0 left-0 w-16 h-16 sm:w-20 sm:h-20 border-t-2 border-l-2 border-gold opacity-50 pointer-events-none z-10" />
-      <span className="absolute bottom-0 right-0 w-16 h-16 sm:w-20 sm:h-20 border-b-2 border-r-2 border-gold opacity-50 pointer-events-none z-10" />
-
       {/* Left border */}
       <div className="border-strip left-0 top-0 bottom-0 flex-col hidden sm:flex"
-        style={{ width: 'clamp(40px, 6vw, 88px)', paddingBlock: 'clamp(40px, 6vw, 88px)', gap: '4px' }}>
+        style={{ width: 'clamp(40px, 6vw, 88px)', paddingBlock: '24px', gap: '4px' }}>
         {SIDE_FOODS.map((f, i) => <span key={i} style={{ fontSize: 'clamp(1rem, 2vw, 1.9rem)' }}>{f}</span>)}
       </div>
 
       {/* Right border */}
       <div className="border-strip right-0 top-0 bottom-0 flex-col hidden sm:flex"
-        style={{ width: 'clamp(40px, 6vw, 88px)', paddingBlock: 'clamp(40px, 6vw, 88px)', gap: '4px' }}>
+        style={{ width: 'clamp(40px, 6vw, 88px)', paddingBlock: '24px', gap: '4px' }}>
         {[...SIDE_FOODS].reverse().map((f, i) => <span key={i} style={{ fontSize: 'clamp(1rem, 2vw, 1.9rem)' }}>{f}</span>)}
       </div>
 
       {/* ── Inner cream card ── */}
-      <main className="relative bg-cream rounded-sm" style={{
-        minHeight: 'calc(100vh - 2 * clamp(40px, 6vw, 88px))',
+      <main className="relative bg-cream" style={{
+        minHeight: '100vh',
         padding: 'clamp(24px, 5vw, 56px)',
         boxShadow: 'inset 0 0 0 1px rgba(201,168,76,0.30), inset 0 0 0 3px rgba(201,168,76,0.07), 0 8px 48px rgba(0,0,0,0.38)',
       }}>
