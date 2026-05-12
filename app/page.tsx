@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Label, ResponsiveContainer } from 'recharts'
-import { type MacroValues, type MealEntry, saveEntry, loadHistory } from './lib/history'
+import { type MacroValues, saveEntry } from './lib/history'
 import AddToHomeScreen from './components/AddToHomeScreen'
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -25,7 +25,6 @@ interface NutritionData {
 /* ─── Constants ──────────────────────────────────────────── */
 const SCORE_CIRC = 263.9
 const FOODS      = ['🥑','🥩','🥚','🍗','🧀','🥦','🐟','🫒']
-const TOP_FOODS  = [...FOODS, ...FOODS]
 const SIDE_FOODS = [...FOODS, '🥑', '🥩']
 
 /* ─── Helpers ────────────────────────────────────────────── */
@@ -163,14 +162,10 @@ export default function Home() {
   const [tab, setTab]                 = useState<'quantity' | '100g'>('quantity')
   const [photoLoading, setPhotoLoading] = useState(false)
   const [detectedChip, setDetectedChip] = useState('')
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_history, setHistory]        = useState<MealEntry[]>([])
+  const [logState, setLogState]         = useState<'idle' | 'logged'>('idle')
 
   const inputRef    = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Load history on mount (needed so saveEntry can update count elsewhere)
-  useEffect(() => { setHistory(loadHistory()) }, [])
 
   /* ── Analyse ── */
   const analyse = useCallback(async () => {
@@ -189,17 +184,7 @@ export default function Home() {
       setData(json)
       setTab('quantity')
       setDetectedChip('')
-
-      // Auto-save to localStorage (facts only, no photo)
-      const entry: MealEntry = {
-        id:               Date.now().toString(),
-        timestamp:        Date.now(),
-        food_name:        json.corrected_name,
-        quantity_display: json.quantity_display,
-        keto_score:       json.keto_score,
-        per_quantity:     json.per_quantity,
-      }
-      setHistory(saveEntry(entry))
+      setLogState('idle')
 
     } catch {
       setError('Network error — check your connection and try again.')
@@ -214,8 +199,8 @@ export default function Home() {
     if (!file) return
     e.target.value = '' // allow re-selecting same file
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Photo is too large — please use an image under 5 MB.')
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Photo is too large — please use an image under 10 MB.')
       e.target.value = ''
       return
     }
@@ -273,18 +258,6 @@ export default function Home() {
       <span className="absolute top-0 left-0 w-16 h-16 sm:w-20 sm:h-20 border-t-2 border-l-2 border-gold opacity-50 pointer-events-none z-10" />
       <span className="absolute bottom-0 right-0 w-16 h-16 sm:w-20 sm:h-20 border-b-2 border-r-2 border-gold opacity-50 pointer-events-none z-10" />
 
-      {/* Top border */}
-      <div className="border-strip top-0 left-0 right-0 flex-row"
-        style={{ height: 'clamp(40px, 6vw, 88px)', paddingInline: 'clamp(40px, 6vw, 88px)' }}>
-        {TOP_FOODS.map((f, i) => <span key={i} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.9rem)' }}>{f}</span>)}
-      </div>
-
-      {/* Bottom border */}
-      <div className="border-strip bottom-0 left-0 right-0 flex-row"
-        style={{ height: 'clamp(40px, 6vw, 88px)', paddingInline: 'clamp(40px, 6vw, 88px)' }}>
-        {[...TOP_FOODS].reverse().map((f, i) => <span key={i} style={{ fontSize: 'clamp(1rem, 2.5vw, 1.9rem)' }}>{f}</span>)}
-      </div>
-
       {/* Left border */}
       <div className="border-strip left-0 top-0 bottom-0 flex-col hidden sm:flex"
         style={{ width: 'clamp(40px, 6vw, 88px)', paddingBlock: 'clamp(40px, 6vw, 88px)', gap: '4px' }}>
@@ -338,7 +311,7 @@ export default function Home() {
               ref={inputRef}
               type="text"
               value={input}
-              onChange={e => { setInput(e.target.value); if (detectedChip) setDetectedChip(''); if (error) setError('') }}
+              onChange={e => { setInput(e.target.value); if (detectedChip) setDetectedChip(''); if (error) setError(''); if (logState === 'logged') setLogState('idle') }}
               onKeyDown={e => e.key === 'Enter' && analyse()}
               placeholder="e.g. avocado 400g · 2 scrambled eggs · mangoes"
               autoComplete="off"
@@ -470,6 +443,47 @@ export default function Home() {
                 </div>
               </div>
             )}
+
+            {/* Log this Meal */}
+            <div className="mt-8 max-w-2xl mx-auto">
+              <button
+                onClick={() => {
+                  if (logState === 'logged' || !data) return
+                  saveEntry({
+                    id:               Date.now().toString(),
+                    timestamp:        Date.now(),
+                    food_name:        data.corrected_name,
+                    quantity_display: data.quantity_display,
+                    keto_score:       data.keto_score,
+                    per_quantity:     data.per_quantity,
+                  })
+                  setLogState('logged')
+                }}
+                disabled={logState === 'logged'}
+                style={{
+                  width:          '100%',
+                  padding:        '14px 24px',
+                  borderRadius:   '6px',
+                  border:         'none',
+                  background:     logState === 'logged' ? '#A8883C' : '#C9A84C',
+                  color:          '#2D4A3E',
+                  fontFamily:     'var(--font-lato), sans-serif',
+                  fontSize:       '0.8rem',
+                  fontWeight:     700,
+                  letterSpacing:  '0.14em',
+                  textTransform:  'uppercase',
+                  cursor:         logState === 'logged' ? 'default' : 'pointer',
+                  opacity:        logState === 'logged' ? 0.85 : 1,
+                  transition:     'background 0.2s, opacity 0.2s',
+                  display:        'flex',
+                  alignItems:     'center',
+                  justifyContent: 'center',
+                  gap:            '8px',
+                }}
+              >
+                {logState === 'logged' ? '✓ Logged to Today' : '＋ Log this Meal'}
+              </button>
+            </div>
 
           </section>
         )}

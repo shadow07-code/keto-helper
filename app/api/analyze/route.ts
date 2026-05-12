@@ -15,17 +15,33 @@ function buildPrompt(input: string) {
 Food input: "${input}"
 
 Instructions:
-1. Correct the food name (e.g. "avacado" → "Avocado").
-2. Parse the quantity. Default to 100 g if none is given.
-   Handle: "400g", "2 cups", "half a plate", "1 mango", "3 slices", "a handful".
-3. Calculate macros for BOTH per-100 g AND the entered quantity.
-4. Score keto compliance 1–10:
+1. Detect whether the input contains MULTIPLE foods (separated by commas, "and", "+", "&", or line breaks).
+   Examples of multi-food inputs: "2 eggs, 300g pork, 100g cauliflower" or "avocado and salmon 150g".
+   Examples of single-food inputs: "avocado 200g", "2 scrambled eggs".
+
+2. For SINGLE food:
+   - Correct the food name (e.g. "avacado" → "Avocado").
+   - Parse the quantity. Default to 100 g if none is given.
+     Handle: "400g", "2 cups", "half a plate", "1 mango", "3 slices", "a handful".
+   - Set corrected_name to the food name. Set quantity_display to the parsed quantity.
+
+3. For MULTIPLE foods:
+   - Parse each item separately (name + quantity, defaulting to 100g each if unspecified).
+   - Calculate macros for each item individually, then SUM all macros into per_quantity.
+   - Set corrected_name to "Combined: Item1, Item2, Item3" (corrected names).
+   - Set quantity_display to a description like "2 eggs + 300g pork + 100g cauliflower".
+   - Set parsed_quantity_g to the total grams of all items combined.
+   - per_100g: calculate as per_quantity macros divided by (parsed_quantity_g / 100).
+   - keto_score: weighted average of individual food scores, weighted by each item's calorie contribution.
+
+4. Calculate macros for BOTH per-100 g AND the entered quantity.
+5. Score keto compliance 1–10:
    10 = perfect keto (butter, bacon, avocado)
    7–9 = good keto (meat, eggs, cheese, salmon)
    4–6 = borderline (legumes, some dairy)
    1–3 = not keto (rice, bread, pasta, sugar, most fruits)
-5. Write a 1-2 sentence recommendation for a keto dieter.
-6. If keto_score ≤ 6, populate keto_alternatives with 3–4 genuinely keto-friendly foods
+6. Write a 1-2 sentence recommendation for a keto dieter.
+7. If keto_score ≤ 6, populate keto_alternatives with 3–4 genuinely keto-friendly foods
    that serve a similar culinary purpose. Each must include name, reason, and keto_score.
    If keto_score > 6, return an empty array for keto_alternatives.
 
@@ -33,7 +49,7 @@ Return this exact JSON (raw, no fences):
 {
   "corrected_name": "string",
   "parsed_quantity_g": 100,
-  "quantity_display": "string — e.g. '400g' or '1 cup (240g)' or '100g (default)'",
+  "quantity_display": "string — e.g. '400g' or '2 eggs + 300g pork + 100g cauliflower'",
   "per_100g": {
     "calories": 0, "carbs_g": 0, "protein_g": 0,
     "fat_g": 0, "fiber_g": 0, "net_carbs_g": 0

@@ -190,3 +190,61 @@ export function generateObservations(groups: DayGroup[]): Observation[] {
 
   return obs
 }
+
+// ─── Update / Delete ─────────────────────────────────────────
+
+/** Replace an entry by id, persist, return updated array. */
+export function updateEntry(id: string, updated: MealEntry): MealEntry[] {
+  const prev = loadHistory()
+  const next = prev.map(e => e.id === id ? updated : e)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  return next
+}
+
+/** Remove an entry by id, persist, return updated array. */
+export function deleteEntry(id: string): MealEntry[] {
+  const prev = loadHistory()
+  const next = prev.filter(e => e.id !== id)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  return next
+}
+
+// ─── 30-Day Text Summary ─────────────────────────────────────
+
+function fmtN(n: number) { return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1) }
+
+export function generateSummaryText(groups: DayGroup[]): string {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const recent = groups.filter(g => new Date(g.dateKey).getTime() >= cutoff)
+
+  if (recent.length === 0) return 'No meals logged in the last 30 days.'
+
+  const today = new Date()
+  const lines: string[] = [
+    `KetoHelper — 30-Day Summary (generated ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })})`,
+    '',
+  ]
+
+  for (const g of recent) {
+    const t   = dayTotals(g.meals)
+    const avg = avgKetoScore(g.meals)
+    const label = g.dateKey === new Date().toDateString()
+      ? new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date(g.dateKey).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+    lines.push(`────────────────────────────────`)
+    lines.push(`${label}  •  ${g.meals.length} meal${g.meals.length !== 1 ? 's' : ''}`)
+    lines.push(`────────────────────────────────`)
+
+    for (const m of g.meals) {
+      const v = m.per_quantity
+      lines.push(`  • ${m.food_name} (${m.quantity_display}) — ${Math.round(v.calories)} kcal | Net carbs ${fmtN(v.net_carbs_g)}g | Protein ${fmtN(v.protein_g)}g | Fat ${fmtN(v.fat_g)}g`)
+    }
+
+    const scoreStr = avg >= 8 ? 'Keto' : avg >= 5 ? 'Borderline' : 'Non-Keto'
+    lines.push(`  Day total: ${Math.round(t.calories)} kcal | Net carbs ${fmtN(t.net_carbs_g)}g | Protein ${fmtN(t.protein_g)}g | Fat ${fmtN(t.fat_g)}g | Avg score: ${avg.toFixed(1)}★ (${scoreStr})`)
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}

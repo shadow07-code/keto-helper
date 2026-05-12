@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
             },
             {
               type: 'text',
-              text: 'Identify the food in this image and estimate its weight in grams. Consider the typical serving size visible. Return ONLY valid JSON with no markdown: {"detected_food":"string","estimated_weight_g":number,"confidence":"low|medium|high"}',
+              text: 'Identify all foods visible in this image and estimate weights. If multiple distinct foods are present, list each with its estimated weight (e.g. "2 eggs, 300g pork, 100g cauliflower"). If a single food, just name it. Return ONLY valid JSON with no markdown: {"detected_food":"string — single food name OR comma-separated list like \'2 eggs, 300g pork, 100g cauliflower\'","estimated_weight_g":number — total weight of all items combined,"confidence":"low|medium|high"}',
             },
           ],
         },

@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import {
   loadHistory, groupByDay, dayTotals, macroPct, avgKetoScore,
-  generateObservations, type DayGroup,
+  generateObservations, generateSummaryText, type DayGroup,
 } from '../lib/history'
 
 function fmt(n: number) { return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1) }
@@ -52,6 +52,15 @@ function buildChartData(groups: DayGroup[]) {
 
 const CHART_MARGIN = { top: 4, right: 8, left: -16, bottom: 0 }
 
+function CopyIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }}>
+      <rect x="9" y="9" width="13" height="13" rx="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </svg>
+  )
+}
+
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-xl border border-[#E8DCC8] p-4 shadow-sm">
@@ -62,7 +71,8 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 }
 
 export default function PastPage() {
-  const [groups, setGroups] = useState<DayGroup[]>([])
+  const [groups, setGroups]     = useState<DayGroup[]>([])
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
 
   useEffect(() => {
     const all = loadHistory()
@@ -80,7 +90,39 @@ export default function PastPage() {
       <div className="bg-green-rich text-cream px-5 pt-10 pb-6">
         <div className="max-w-2xl mx-auto">
           <p className="text-[0.65rem] font-bold tracking-[0.2em] uppercase text-green-light mb-1">History</p>
-          <h1 className="font-playfair font-bold text-2xl leading-tight">Your Trends</h1>
+          <div className="flex items-end justify-between gap-4">
+            <h1 className="font-playfair font-bold text-2xl leading-tight">Your Trends</h1>
+            {!isEmpty && (
+              <button
+                onClick={async () => {
+                  const text = generateSummaryText(groups)
+                  await navigator.clipboard.writeText(text)
+                  setCopyState('copied')
+                  setTimeout(() => setCopyState('idle'), 2000)
+                }}
+                style={{
+                  flexShrink:    0,
+                  display:       'flex',
+                  alignItems:    'center',
+                  gap:           '5px',
+                  fontSize:      '0.65rem',
+                  fontWeight:    700,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color:         copyState === 'copied' ? '#A8C5A0' : '#C9A84C',
+                  background:    'rgba(255,255,255,0.08)',
+                  border:        `1px solid ${copyState === 'copied' ? 'rgba(168,197,160,0.4)' : 'rgba(201,168,76,0.35)'}`,
+                  borderRadius:  '999px',
+                  padding:       '5px 12px',
+                  cursor:        'pointer',
+                  transition:    'color 0.2s, border-color 0.2s',
+                  whiteSpace:    'nowrap',
+                }}
+              >
+                {copyState === 'copied' ? '✓ Copied!' : <><CopyIcon /> Copy 30-day summary</>}
+              </button>
+            )}
+          </div>
           {!isEmpty && (
             <p className="text-sm text-green-light mt-1">{groups.length} day{groups.length !== 1 ? 's' : ''} tracked</p>
           )}
