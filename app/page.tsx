@@ -331,7 +331,7 @@ export default function Home() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={photoLoading || loading}
                 title="Upload a food photo"
-                className="w-full py-[0.72rem] bg-green-rich text-cream rounded text-[1.6rem] transition hover:bg-green-mid active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center"
+                className="w-full py-2.5 bg-[#C9A84C] text-[#2D4A3E] rounded text-[1.6rem] transition hover:bg-[#B8963C] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center"
               >
                 {photoLoading ? <span className="spinner text-base">⟳</span> : '📷'}
               </button>
