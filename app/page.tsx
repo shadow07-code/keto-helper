@@ -196,15 +196,55 @@ export default function Home() {
     }
   }, [input])
 
+  /* ── Image compression helper ── */
+  // Compresses a File to JPEG via canvas until it fits within maxBytes.
+  // Silently scales down quality from 0.85 → 0.1 in steps; always returns base64.
+  const compressImage = useCallback((file: File, maxBytes: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl)
+        const canvas = document.createElement('canvas')
+        // Scale canvas dimensions proportionally so large sensors don't waste bytes
+        const scale = Math.min(1, Math.sqrt(maxBytes / file.size))
+        canvas.width  = Math.round(img.width  * scale)
+        canvas.height = Math.round(img.height * scale)
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { reject(new Error('Canvas unavailable')); return }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+        let quality = 0.85
+        const tryNext = () => {
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('Compression failed')); return }
+            if (blob.size <= maxBytes || quality <= 0.1) {
+              const reader = new FileReader()
+              reader.onload = () => resolve((reader.result as string).split(',')[1])
+              reader.onerror = reject
+              reader.readAsDataURL(blob)
+            } else {
+              quality = parseFloat((quality - 0.1).toFixed(1))
+              tryNext()
+            }
+          }, 'image/jpeg', quality)
+        }
+        tryNext()
+      }
+      img.onerror = reject
+      img.src = objectUrl
+    })
+  }, [])
+
   /* ── Photo upload ── */
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = '' // allow re-selecting same file
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Photo is too large — please use an image under 10 MB.')
-      e.target.value = ''
+    // Hard cap at 20 MB — beyond this even compression won't help reliably
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Photo is too large — please use an image under 20 MB.')
       return
     }
 
@@ -212,18 +252,18 @@ export default function Home() {
     setError('')
 
     try {
-      const reader = new FileReader()
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string
-          // data:image/jpeg;base64,XXXX → extract parts
-          resolve(result.split(',')[1])
-        }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
+      // Target 2.5 MB so base64 payload stays well under Vercel's 4.5 MB body limit
+      const TARGET = 2.5 * 1024 * 1024
+      const base64 = file.size <= TARGET
+        ? await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve((reader.result as string).split(',')[1])
+            reader.onerror = reject
+            reader.readAsDataURL(file)
+          })
+        : await compressImage(file, TARGET)
 
-      const media_type = file.type || 'image/jpeg'
+      const media_type = file.size <= TARGET ? (file.type || 'image/jpeg') : 'image/jpeg'
 
       const res  = await fetch('/api/vision', {
         method: 'POST',
@@ -247,7 +287,7 @@ export default function Home() {
     } finally {
       setPhotoLoading(false)
     }
-  }, [])
+  }, [compressImage])
 
   const pct  = data ? (tab === 'quantity' ? data.macro_percentages_per_quantity : data.macro_percentages_per_100g) : null
   const vals = data ? (tab === 'quantity' ? data.per_quantity : data.per_100g) : null
