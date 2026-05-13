@@ -352,7 +352,7 @@ export default function Home() {
           {/* Subtitles aligned to their respective columns */}
           <div className="flex gap-3 mt-1.5">
             <p style={{ flex: '2 1 0%' }} className="text-[0.72rem] text-[#8A9280] text-center">Describe your meal and quantity</p>
-            <p style={{ flex: '1 1 0%' }} className="text-[0.72rem] text-[#8A9280] text-center whitespace-nowrap">Snap your meal instead</p>
+            <p style={{ flex: '1 1 0%' }} className="text-[0.72rem] text-[#8A9280] text-right whitespace-nowrap">Snap your meal</p>
           </div>
 
           {/* Analyse button — full width below the two columns */}
