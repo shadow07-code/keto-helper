@@ -302,49 +302,57 @@ export default function Home() {
 
         {/* Input section */}
         <section className="max-w-2xl mx-auto mb-7">
-          <label htmlFor="food-input" className="block font-playfair font-semibold text-green-rich text-[1.05rem] mb-2.5">
+          <label htmlFor="food-input" className="block font-playfair font-semibold text-green-rich text-[1.2rem] mb-3 text-center">
             What are you eating?
           </label>
 
-          {/* Two-column row: text input left, camera button right */}
-          <div className="flex gap-3 items-start">
-            {/* Left column — text input */}
-            <div className="flex-1">
-              <input
-                id="food-input"
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={e => { setInput(e.target.value); if (detectedChip) setDetectedChip(''); if (error) setError(''); if (logState === 'logged') setLogState('idle') }}
-                onKeyDown={e => e.key === 'Enter' && analyse()}
-                placeholder="e.g. avocado 400g · 2 eggs"
-                autoComplete="off"
-                spellCheck={false}
-                className="w-full px-4 py-2.5 bg-white border border-cream-dark rounded text-[0.92rem] text-[#1C2B20] placeholder:text-[#8A9280] placeholder:italic placeholder:text-[0.82rem] outline-none transition focus:border-green-mid focus:ring-2 focus:ring-green-mid/15"
-              />
-              <p className="text-[0.72rem] text-[#8A9280] mt-1.5">Describe your meal and quantity</p>
-            </div>
+          {/* Input + camera row — inline flex ratios (immune to purging), items-stretch for equal height */}
+          <div className="flex gap-3 items-stretch">
+            <input
+              id="food-input"
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={e => { setInput(e.target.value); if (detectedChip) setDetectedChip(''); if (error) setError(''); if (logState === 'logged') setLogState('idle') }}
+              onKeyDown={e => e.key === 'Enter' && analyse()}
+              placeholder="e.g. avocado 400g · 2 eggs"
+              autoComplete="off"
+              spellCheck={false}
+              style={{ flex: '2 1 0%' }}
+              className="min-w-0 px-4 py-2.5 bg-white border border-cream-dark rounded text-[0.92rem] text-[#1C2B20] placeholder:text-[#8A9280] placeholder:italic placeholder:text-[0.82rem] outline-none transition focus:border-green-mid focus:ring-2 focus:ring-green-mid/15"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photoLoading || loading}
+              title="Upload a food photo"
+              style={{ flex: '1 1 0%' }}
+              className="flex items-center justify-center bg-[#C9A84C] text-[#2D4A3E] rounded transition hover:bg-[#B8963C] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+            >
+              {photoLoading ? (
+                <span className="spinner" style={{ fontSize: '1rem' }}>⟳</span>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              )}
+            </button>
+          </div>
 
-            {/* Right column — camera button */}
-            <div className="flex-1">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={photoLoading || loading}
-                title="Upload a food photo"
-                className="w-full py-2.5 bg-[#C9A84C] text-[#2D4A3E] rounded text-[1.6rem] transition hover:bg-[#B8963C] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center"
-              >
-                {photoLoading ? <span className="spinner text-base">⟳</span> : '📷'}
-              </button>
-              <p className="text-[0.72rem] text-[#8A9280] mt-1.5 text-center">📸 Snap your meal instead</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
+          {/* Hidden file input — outside the flex row, inline display:none avoids purge issues */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+
+          {/* Subtitles aligned to their respective columns */}
+          <div className="flex gap-3 mt-1.5">
+            <p style={{ flex: '2 1 0%' }} className="text-[0.72rem] text-[#8A9280] text-center">Describe your meal and quantity</p>
+            <p style={{ flex: '1 1 0%' }} className="text-[0.72rem] text-[#8A9280] text-center whitespace-nowrap">Snap your meal instead</p>
           </div>
 
           {/* Analyse button — full width below the two columns */}
