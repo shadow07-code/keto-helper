@@ -306,34 +306,36 @@ export default function Home() {
             What are you eating?
           </label>
 
-          {/* Input row */}
-          <div className="flex gap-2 flex-col sm:flex-row">
-            <input
-              id="food-input"
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => { setInput(e.target.value); if (detectedChip) setDetectedChip(''); if (error) setError(''); if (logState === 'logged') setLogState('idle') }}
-              onKeyDown={e => e.key === 'Enter' && analyse()}
-              placeholder="e.g. avocado 400g · 2 scrambled eggs · mangoes"
-              autoComplete="off"
-              spellCheck={false}
-              className="flex-1 min-w-0 px-5 py-3.5 bg-white border border-cream-dark rounded text-[0.95rem] text-[#1C2B20] placeholder:text-[#8A9280] placeholder:italic placeholder:text-[0.87rem] outline-none transition focus:border-green-mid focus:ring-2 focus:ring-green-mid/15"
-            />
-            <div className="flex gap-2">
-              <button onClick={analyse} disabled={loading}
-                className="flex-1 sm:flex-none px-7 py-3.5 bg-green-rich text-cream rounded text-[0.8rem] font-bold tracking-widest uppercase transition hover:bg-green-mid active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md whitespace-nowrap">
-                {loading ? <span className="spinner">⟳</span> : 'Analyse'}
-              </button>
-              {/* Photo upload button */}
+          {/* Two-column row: text input left, camera button right */}
+          <div className="flex gap-3 items-start">
+            {/* Left column — text input */}
+            <div className="flex-1">
+              <input
+                id="food-input"
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={e => { setInput(e.target.value); if (detectedChip) setDetectedChip(''); if (error) setError(''); if (logState === 'logged') setLogState('idle') }}
+                onKeyDown={e => e.key === 'Enter' && analyse()}
+                placeholder="e.g. avocado 400g · 2 eggs"
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full px-4 py-2.5 bg-white border border-cream-dark rounded text-[0.92rem] text-[#1C2B20] placeholder:text-[#8A9280] placeholder:italic placeholder:text-[0.82rem] outline-none transition focus:border-green-mid focus:ring-2 focus:ring-green-mid/15"
+              />
+              <p className="text-[0.72rem] text-[#8A9280] mt-1.5">Describe your meal and quantity</p>
+            </div>
+
+            {/* Right column — camera button */}
+            <div className="flex-1">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={photoLoading || loading}
                 title="Upload a food photo"
-                className="px-4 py-3.5 bg-cream-dark text-green-rich rounded text-lg transition hover:bg-cream-mid active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border border-[#E8DCC8]"
+                className="w-full py-[0.72rem] bg-green-rich text-cream rounded text-[1.6rem] transition hover:bg-green-mid active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center"
               >
-                {photoLoading ? <span className="spinner text-sm">⟳</span> : '📷'}
+                {photoLoading ? <span className="spinner text-base">⟳</span> : '📷'}
               </button>
+              <p className="text-[0.72rem] text-[#8A9280] mt-1.5 text-center">📸 Snap your meal instead</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -344,6 +346,15 @@ export default function Home() {
               />
             </div>
           </div>
+
+          {/* Analyse button — full width below the two columns */}
+          <button
+            onClick={analyse}
+            disabled={loading}
+            className="w-full mt-3 px-7 py-3.5 bg-green-rich text-cream rounded text-[0.8rem] font-bold tracking-widest uppercase transition hover:bg-green-mid active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+          >
+            {loading ? <span className="spinner">⟳</span> : 'Analyse'}
+          </button>
 
           {/* Detection chip */}
           {detectedChip && (
@@ -361,14 +372,65 @@ export default function Home() {
               <span>⚠</span> {error}
             </p>
           )}
-          <p className="mt-2 text-[0.74rem] text-[#8A9280] italic">
-            Type a food name, include quantity — or 📷 upload a photo to auto-detect
-          </p>
         </section>
+
+        {/* K icon loading animation */}
+        {(loading || photoLoading) && (
+          <div className="flex flex-col items-center justify-center py-16 select-none max-w-2xl mx-auto">
+            <svg className="keto-loading-icon" width="80" height="80" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+              <rect width="512" height="512" rx="112" fill="#2D4A3E"/>
+              <text x="256" y="340" textAnchor="middle" fontFamily="Georgia, serif" fontSize="300" fontWeight="700" fill="#C9A84C">K</text>
+            </svg>
+            <p className="mt-5 text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold opacity-80">
+              {photoLoading ? 'Detecting food…' : 'Analysing…'}
+            </p>
+          </div>
+        )}
 
         {/* Results */}
         {data && (
           <section className="max-w-3xl mx-auto animate-fade-up">
+
+            {/* Log this Meal — top of results */}
+            <div className="mb-6 max-w-2xl mx-auto">
+              <button
+                onClick={() => {
+                  if (logState === 'logged' || !data) return
+                  saveEntry({
+                    id:               Date.now().toString(),
+                    timestamp:        Date.now(),
+                    food_name:        data.corrected_name,
+                    quantity_display: data.quantity_display,
+                    keto_score:       data.keto_score,
+                    per_quantity:     data.per_quantity,
+                  })
+                  setLogState('logged')
+                }}
+                disabled={logState === 'logged'}
+                style={{
+                  width:          '100%',
+                  padding:        '14px 24px',
+                  borderRadius:   '6px',
+                  border:         'none',
+                  background:     logState === 'logged' ? '#A8883C' : '#C9A84C',
+                  color:          '#2D4A3E',
+                  fontFamily:     'var(--font-lato), sans-serif',
+                  fontSize:       '0.8rem',
+                  fontWeight:     700,
+                  letterSpacing:  '0.14em',
+                  textTransform:  'uppercase',
+                  cursor:         logState === 'logged' ? 'default' : 'pointer',
+                  opacity:        logState === 'logged' ? 0.85 : 1,
+                  transition:     'background 0.2s, opacity 0.2s',
+                  display:        'flex',
+                  alignItems:     'center',
+                  justifyContent: 'center',
+                  gap:            '8px',
+                }}
+              >
+                {logState === 'logged' ? '✓ Logged to Today' : '＋ Log this Meal'}
+              </button>
+            </div>
 
             {/* Food name + score */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 pb-6 mb-6 border-b border-cream-dark">
@@ -446,46 +508,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Log this Meal */}
-            <div className="mt-8 max-w-2xl mx-auto">
-              <button
-                onClick={() => {
-                  if (logState === 'logged' || !data) return
-                  saveEntry({
-                    id:               Date.now().toString(),
-                    timestamp:        Date.now(),
-                    food_name:        data.corrected_name,
-                    quantity_display: data.quantity_display,
-                    keto_score:       data.keto_score,
-                    per_quantity:     data.per_quantity,
-                  })
-                  setLogState('logged')
-                }}
-                disabled={logState === 'logged'}
-                style={{
-                  width:          '100%',
-                  padding:        '14px 24px',
-                  borderRadius:   '6px',
-                  border:         'none',
-                  background:     logState === 'logged' ? '#A8883C' : '#C9A84C',
-                  color:          '#2D4A3E',
-                  fontFamily:     'var(--font-lato), sans-serif',
-                  fontSize:       '0.8rem',
-                  fontWeight:     700,
-                  letterSpacing:  '0.14em',
-                  textTransform:  'uppercase',
-                  cursor:         logState === 'logged' ? 'default' : 'pointer',
-                  opacity:        logState === 'logged' ? 0.85 : 1,
-                  transition:     'background 0.2s, opacity 0.2s',
-                  display:        'flex',
-                  alignItems:     'center',
-                  justifyContent: 'center',
-                  gap:            '8px',
-                }}
-              >
-                {logState === 'logged' ? '✓ Logged to Today' : '＋ Log this Meal'}
-              </button>
-            </div>
 
           </section>
         )}

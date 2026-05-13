@@ -46,21 +46,20 @@ function MealCard({
   onDelete: (id: string) => void
 }) {
   const [mode, setMode]           = useState<'view' | 'edit' | 'saving' | 'confirm-delete'>('view')
-  const [foodName, setFoodName]   = useState(meal.food_name)
-  const [quantity, setQuantity]   = useState(meal.quantity_display)
+  const [editInput, setEditInput] = useState(`${meal.food_name} ${meal.quantity_display}`)
   const [editError, setEditError] = useState('')
 
   const v = meal.per_quantity
 
   const handleSave = useCallback(async () => {
-    if (!foodName.trim()) { setEditError('Food name is required.'); return }
+    if (!editInput.trim()) { setEditError('Please enter a food and quantity.'); return }
     setMode('saving')
     setEditError('')
     try {
       const res  = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ food_input: `${foodName.trim()} ${quantity.trim()}` }),
+        body: JSON.stringify({ food_input: editInput.trim() }),
       })
       const json = await res.json()
       if (!res.ok || json.error) { setEditError(json.error ?? 'Something went wrong.'); setMode('edit'); return }
@@ -73,14 +72,13 @@ function MealCard({
         per_quantity:     json.per_quantity,
       }
       onUpdate(updated)
-      setFoodName(json.corrected_name)
-      setQuantity(json.quantity_display)
+      setEditInput(`${json.corrected_name} ${json.quantity_display}`)
       setMode('view')
     } catch {
       setEditError('Network error — please try again.')
       setMode('edit')
     }
-  }, [foodName, quantity, meal, onUpdate])
+  }, [editInput, meal, onUpdate])
 
   if (mode === 'confirm-delete') {
     return (
@@ -106,22 +104,13 @@ function MealCard({
     return (
       <div className="p-4 bg-white rounded border border-[#C9A84C] space-y-3">
         <p className="text-[0.68rem] font-bold tracking-widest uppercase text-[#8A9280]">Edit meal</p>
-        <div className="flex flex-col gap-2">
-          <input
-            value={foodName}
-            onChange={e => setFoodName(e.target.value)}
-            disabled={mode === 'saving'}
-            placeholder="Food name"
-            className="w-full border border-[#E8DCC8] rounded px-3 py-2 text-sm text-[#2D4A3E] bg-[#FAF6EF] focus:outline-none focus:border-[#C9A84C]"
-          />
-          <input
-            value={quantity}
-            onChange={e => setQuantity(e.target.value)}
-            disabled={mode === 'saving'}
-            placeholder="Quantity (e.g. 200g, 1 cup)"
-            className="w-full border border-[#E8DCC8] rounded px-3 py-2 text-sm text-[#2D4A3E] bg-[#FAF6EF] focus:outline-none focus:border-[#C9A84C]"
-          />
-        </div>
+        <input
+          value={editInput}
+          onChange={e => setEditInput(e.target.value)}
+          disabled={mode === 'saving'}
+          placeholder="e.g. avocado 400g · grilled chicken 200g"
+          className="w-full border border-[#E8DCC8] rounded px-3 py-2 text-sm text-[#2D4A3E] bg-[#FAF6EF] focus:outline-none focus:border-[#C9A84C]"
+        />
         {editError && <p className="text-[0.78rem] text-[#D4714A]">⚠ {editError}</p>}
         <div className="flex gap-2">
           <button
@@ -135,8 +124,7 @@ function MealCard({
             onClick={() => {
               setMode('view')
               setEditError('')
-              setFoodName(meal.food_name)
-              setQuantity(meal.quantity_display)
+              setEditInput(`${meal.food_name} ${meal.quantity_display}`)
             }}
             disabled={mode === 'saving'}
             className="px-4 py-2 rounded text-xs font-bold uppercase tracking-wider bg-[#F0EBE0] text-[#4A5240]"

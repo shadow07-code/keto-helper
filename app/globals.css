@@ -143,3 +143,12 @@ body {
   display: inline-block;
   animation: spin 0.9s linear infinite;
 }
+
+/* ─── KetoHelper K icon loading pulse ───────────────── */
+@keyframes keto-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   filter: drop-shadow(0 0 0px #C9A84C); }
+  50%       { transform: scale(1.08); opacity: 0.8; filter: drop-shadow(0 4px 12px rgba(201,168,76,0.55)); }
+}
+.keto-loading-icon {
+  animation: keto-pulse 1.4s ease-in-out infinite;
+}
