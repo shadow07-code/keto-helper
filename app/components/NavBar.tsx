@@ -3,14 +3,24 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const TABS = [
-  { href: '/',      label: 'Analyse',    icon: <AnalyseIcon /> },
-  { href: '/today', label: 'Today',      icon: <TodayIcon />   },
-  { href: '/past',  label: 'Past Meals', icon: <TrendsIcon />  },
+/* ─── 4-slot nav with raised center Fuel button ────────────
+   Layout: Journey · Today · ⊕ FUEL (raised) · Progress
+   100% inline styles — Tailwind purging has broken this before.
+   DO NOT convert any style to a CSS class.
+──────────────────────────────────────────────────────────── */
+
+const LEFT_TABS = [
+  { href: '/',      label: 'Journey', icon: <JourneyIcon /> },
+  { href: '/today', label: 'Today',   icon: <TodayIcon />   },
+]
+
+const RIGHT_TABS = [
+  { href: '/past',  label: 'Progress', icon: <ProgressIcon /> },
 ]
 
 export default function NavBar() {
   const path = usePathname()
+  const fuelActive = path === '/analyse'
 
   return (
     <nav style={{
@@ -19,14 +29,15 @@ export default function NavBar() {
       left:       0,
       right:      0,
       height:     '64px',
-      background: '#FAF6EF',
-      borderTop:  '1.5px solid #E8DCC8',
+      background: '#1E2E26',
+      borderTop:  '1px solid #2C4036',
       display:    'flex',
       alignItems: 'stretch',
       zIndex:     9999,
-      boxShadow:  '0 -4px 20px rgba(37,61,49,0.12)',
+      boxShadow:  '0 -4px 24px rgba(0,0,0,0.35)',
     }}>
-      {TABS.map(({ href, label, icon }) => {
+      {/* Left tabs */}
+      {LEFT_TABS.map(({ href, label, icon }) => {
         const active = path === href
         return (
           <Link
@@ -38,20 +49,100 @@ export default function NavBar() {
               flexDirection:  'column',
               alignItems:     'center',
               justifyContent: 'center',
-              gap:            '4px',
-              color:          active ? '#2D4A3E' : '#8A9280',
+              gap:            '3px',
+              color:          active ? '#E6C24A' : '#8FA396',
               textDecoration: 'none',
-              borderTop:      `2.5px solid ${active ? '#C9A84C' : 'transparent'}`,
+              borderTop:      `2.5px solid ${active ? '#E6C24A' : 'transparent'}`,
               transition:     'color 0.18s',
               fontFamily:     'var(--font-lato), sans-serif',
-              fontSize:       '0.6rem',
+              fontSize:       '0.58rem',
               fontWeight:     700,
               letterSpacing:  '0.09em',
               textTransform:  'uppercase',
-              background:     active ? 'rgba(201,168,76,0.06)' : 'transparent',
+              background:     active ? 'rgba(230,194,74,0.06)' : 'transparent',
             }}
           >
-            <span style={{ lineHeight: 1, color: active ? '#2D4A3E' : '#8A9280' }}>{icon}</span>
+            <span style={{ lineHeight: 1, color: active ? '#E6C24A' : '#8FA396' }}>{icon}</span>
+            <span>{label}</span>
+          </Link>
+        )
+      })}
+
+      {/* Center: Raised Fuel button */}
+      <div style={{
+        flex:           1,
+        display:        'flex',
+        alignItems:     'flex-start',
+        justifyContent: 'center',
+        position:       'relative',
+      }}>
+        <Link
+          href="/analyse"
+          style={{
+            width:          56,
+            height:         56,
+            borderRadius:   '50%',
+            background:     fuelActive
+              ? 'linear-gradient(135deg, #E6C24A, #C9A84C)'
+              : 'linear-gradient(135deg, #C9A84C, #B8963C)',
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
+            marginTop:      '-18px',
+            boxShadow:      fuelActive
+              ? '0 4px 20px rgba(230,194,74,0.5), 0 0 0 3px #1E2E26'
+              : '0 4px 16px rgba(201,168,76,0.35), 0 0 0 3px #1E2E26',
+            textDecoration: 'none',
+            transition:     'box-shadow 0.2s, transform 0.15s',
+          }}
+        >
+          <FuelIcon active={fuelActive} />
+        </Link>
+        {/* Fuel label below the circle */}
+        <span style={{
+          position:       'absolute',
+          bottom:         6,
+          left:           '50%',
+          transform:      'translateX(-50%)',
+          fontFamily:     'var(--font-lato), sans-serif',
+          fontSize:       '0.5rem',
+          fontWeight:     700,
+          letterSpacing:  '0.09em',
+          textTransform:  'uppercase',
+          color:          fuelActive ? '#E6C24A' : '#8FA396',
+          whiteSpace:     'nowrap',
+        }}>
+          Fuel
+        </span>
+      </div>
+
+      {/* Right tabs */}
+      {RIGHT_TABS.map(({ href, label, icon }) => {
+        const active = path === href
+        return (
+          <Link
+            key={href}
+            href={href}
+            style={{
+              flex:           1,
+              display:        'flex',
+              flexDirection:  'column',
+              alignItems:     'center',
+              justifyContent: 'center',
+              gap:            '3px',
+              color:          active ? '#E6C24A' : '#8FA396',
+              textDecoration: 'none',
+              borderTop:      `2.5px solid ${active ? '#E6C24A' : 'transparent'}`,
+              transition:     'color 0.18s',
+              fontFamily:     'var(--font-lato), sans-serif',
+              fontSize:       '0.58rem',
+              fontWeight:     700,
+              letterSpacing:  '0.09em',
+              textTransform:  'uppercase',
+              background:     active ? 'rgba(230,194,74,0.06)' : 'transparent',
+            }}
+          >
+            <span style={{ lineHeight: 1, color: active ? '#E6C24A' : '#8FA396' }}>{icon}</span>
             <span>{label}</span>
           </Link>
         )
@@ -60,10 +151,14 @@ export default function NavBar() {
   )
 }
 
-function AnalyseIcon() {
+/* ─── Icons ──────────────────────────────────────────────── */
+
+function JourneyIcon() {
+  // Gauge / speedometer icon
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+      <path d="M12 6v6l4 2"/>
     </svg>
   )
 }
@@ -79,7 +174,17 @@ function TodayIcon() {
   )
 }
 
-function TrendsIcon() {
+function FuelIcon({ active }: { active: boolean }) {
+  // Plus + camera hybrid
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={active ? '#14201A' : '#14201A'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  )
+}
+
+function ProgressIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>

@@ -19,8 +19,8 @@ const lato = Lato({
 })
 
 export const metadata: Metadata = {
-  title: 'KetoHelper — Is it Keto?',
-  description: 'AI-powered keto compliance checker with macro analysis.',
+  title: 'KetoHelper — Your Ketosis Journey',
+  description: 'Gamified keto tracking — AI-powered meal analysis, ketosis meter, daily missions, and science-backed body cues.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

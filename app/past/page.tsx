@@ -12,15 +12,26 @@ import {
   loadHistory, groupByDay, dayTotals, macroPct, avgKetoScore,
   generateObservations, generateSummaryText, type DayGroup,
 } from '../lib/history'
+import { buildGameState, PHASES, type GameState } from '../lib/ketosis'
+import BadgeShelf from '../components/BadgeShelf'
 
 function fmt(n: number) { return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1) }
 
 function scoreColor(s: number) {
-  return s >= 8 ? '#4A7C59' : s >= 5 ? '#C9A84C' : '#D4714A'
+  return s >= 8 ? '#4ADE80' : s >= 5 ? '#E6C24A' : '#D4714A'
 }
 
 function scoreLabel(s: number) {
   return s >= 8 ? 'Keto' : s >= 5 ? 'Borderline' : 'Non-Keto'
+}
+
+/* ─── Dark chart tooltip ─── */
+const DARK_TT = {
+  fontSize: 12,
+  borderRadius: 8,
+  border: '1px solid #2C4036',
+  background: '#1E2E26',
+  color: '#F3EEE2',
 }
 
 /* ─── Build chart data (last 14 days) ─── */
@@ -38,16 +49,24 @@ function buildChartData(groups: DayGroup[]) {
       return {
         day:        shortDay,
         netCarbs:   Math.round(t.net_carbs_g),
-        totalCarbs: Math.round(t.carbs_g),
-        protein:    Math.round(t.protein_g),
-        fat:        Math.round(t.fat_g),
-        calories:   Math.round(t.calories),
         fatPct:     pct.fat_pct,
         proteinPct: pct.protein_pct,
         carbsPct:   pct.carbs_pct,
         ketoScore:  parseFloat(avg.toFixed(1)),
       }
     })
+}
+
+/* ─── Build ketosis level history for the journey chart ─── */
+function buildLevelData(gs: GameState) {
+  return gs.model.levelHistory.map(h => {
+    const d = new Date(h.dateKey)
+    return {
+      day: `D${h.day}`,
+      level: h.level,
+      label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    }
+  })
 }
 
 const CHART_MARGIN = { top: 4, right: 8, left: -16, bottom: 0 }
@@ -63,35 +82,51 @@ function CopyIcon() {
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-[#E8DCC8] p-4 shadow-sm">
-      <p className="text-[0.68rem] font-bold tracking-widest uppercase text-[#8A9280] mb-3">{title}</p>
+    <div style={{
+      background: '#1E2E26',
+      borderRadius: 14,
+      border: '1px solid #2C4036',
+      padding: 16,
+    }}>
+      <p style={{
+        fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em',
+        textTransform: 'uppercase', color: '#8FA396', marginBottom: 12,
+        fontFamily: 'var(--font-lato), sans-serif',
+      }}>{title}</p>
       {children}
     </div>
   )
 }
 
-export default function PastPage() {
-  const [groups, setGroups]     = useState<DayGroup[]>([])
+export default function ProgressPage() {
+  const [groups, setGroups]       = useState<DayGroup[]>([])
+  const [gs, setGs]               = useState<GameState | null>(null)
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
 
   useEffect(() => {
     const all = loadHistory()
     setGroups(groupByDay(all))
+    setGs(buildGameState())
   }, [])
 
   const chartData    = buildChartData(groups)
   const observations = generateObservations(groups)
   const isEmpty      = groups.length === 0
+  const levelData    = gs ? buildLevelData(gs) : []
 
   return (
-    <div className="min-h-screen bg-cream pb-24">
+    <div style={{ minHeight: '100vh', paddingBottom: 96 }}>
 
       {/* Header */}
-      <div className="bg-green-rich text-cream px-5 pt-10 pb-6">
-        <div className="max-w-2xl mx-auto">
-          <p className="text-[0.65rem] font-bold tracking-[0.2em] uppercase text-green-light mb-1">History</p>
-          <div className="flex items-end justify-between gap-4">
-            <h1 className="font-playfair font-bold text-2xl leading-tight">Your Trends</h1>
+      <div style={{
+        background: '#1E2E26',
+        padding: '40px 20px 24px',
+        borderBottom: '1px solid #2C4036',
+      }}>
+        <div style={{ maxWidth: 540, margin: '0 auto' }}>
+          <p style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 4, fontFamily: 'var(--font-lato), sans-serif' }}>Your Journey</p>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+            <h1 style={{ fontFamily: 'var(--font-playfair), serif', fontWeight: 700, fontSize: '1.5rem', lineHeight: 1.2, color: '#F3EEE2', margin: 0 }}>Progress</h1>
             {!isEmpty && (
               <button
                 onClick={async () => {
@@ -101,22 +136,14 @@ export default function PastPage() {
                   setTimeout(() => setCopyState('idle'), 2000)
                 }}
                 style={{
-                  flexShrink:    0,
-                  display:       'flex',
-                  alignItems:    'center',
-                  gap:           '5px',
-                  fontSize:      '0.65rem',
-                  fontWeight:    700,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color:         copyState === 'copied' ? '#A8C5A0' : '#C9A84C',
-                  background:    'rgba(255,255,255,0.08)',
-                  border:        `1px solid ${copyState === 'copied' ? 'rgba(168,197,160,0.4)' : 'rgba(201,168,76,0.35)'}`,
-                  borderRadius:  '999px',
-                  padding:       '5px 12px',
-                  cursor:        'pointer',
-                  transition:    'color 0.2s, border-color 0.2s',
-                  whiteSpace:    'nowrap',
+                  flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
+                  fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  color: copyState === 'copied' ? '#4ADE80' : '#E6C24A',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${copyState === 'copied' ? 'rgba(74,222,128,0.3)' : 'rgba(230,194,74,0.3)'}`,
+                  borderRadius: 999, padding: '5px 12px', cursor: 'pointer',
+                  transition: 'color 0.2s, border-color 0.2s', whiteSpace: 'nowrap',
+                  fontFamily: 'var(--font-lato), sans-serif',
                 }}
               >
                 {copyState === 'copied' ? '✓ Copied!' : <><CopyIcon /> Copy 30-day summary</>}
@@ -124,34 +151,79 @@ export default function PastPage() {
             )}
           </div>
           {!isEmpty && (
-            <p className="text-sm text-green-light mt-1">{groups.length} day{groups.length !== 1 ? 's' : ''} tracked</p>
+            <p style={{ fontSize: '0.85rem', color: '#8FA396', marginTop: 4, fontFamily: 'var(--font-lato), sans-serif' }}>
+              {groups.length} day{groups.length !== 1 ? 's' : ''} tracked
+            </p>
           )}
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pt-5 space-y-5">
+      <div style={{ maxWidth: 540, margin: '0 auto', padding: '16px 16px 0' }}>
 
         {isEmpty ? (
-          <div className="text-center py-16 text-[#8A9280]">
-            <div className="text-5xl mb-4">📈</div>
-            <p className="font-playfair text-lg font-semibold text-[#4A5240]">No history yet</p>
-            <p className="text-sm mt-1">Log a few meals and your trends will appear here</p>
+          <div style={{ textAlign: 'center', padding: '64px 0', color: '#8FA396' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 16 }}>📈</div>
+            <p style={{ fontFamily: 'var(--font-playfair), serif', fontSize: '1.1rem', fontWeight: 600, color: '#F3EEE2' }}>No history yet</p>
+            <p style={{ fontSize: '0.85rem', marginTop: 6, fontFamily: 'var(--font-lato), sans-serif' }}>Log a few meals and your trends will appear here</p>
           </div>
         ) : (
-          <>
-            {/* ── Charts (only when ≥ 2 days) ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* ── Ketosis Level Journey (NEW hero chart) ── */}
+            {levelData.length >= 2 && (
+              <ChartCard title="Ketosis Level — Your Journey">
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={levelData} margin={CHART_MARGIN}>
+                    <defs>
+                      <linearGradient id="levelGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#E6C24A" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#E6C24A" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2C4036" />
+                    <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#8FA396' }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#8FA396' }} />
+                    <Tooltip
+                      contentStyle={DARK_TT}
+                      formatter={(v, _, entry) => {
+                        const e = entry.payload as { label?: string }
+                        return [`${v}%`, e?.label ?? 'Ketosis']
+                      }}
+                    />
+                    {/* Zone reference bands */}
+                    {PHASES.map(p => (
+                      <ReferenceLine key={p.key} y={p.min} stroke={p.color} strokeDasharray="4 4" strokeWidth={1} strokeOpacity={0.5} />
+                    ))}
+                    <Area type="monotone" dataKey="level" stroke="#E6C24A" strokeWidth={2.5}
+                      fill="url(#levelGrad)" dot={{ fill: '#E6C24A', r: 2.5 }} activeDot={{ r: 5, fill: '#E6C24A' }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+                {/* Zone legend */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, justifyContent: 'center' }}>
+                  {PHASES.map(p => (
+                    <span key={p.key} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: '0.55rem', fontWeight: 700, color: p.color,
+                      fontFamily: 'var(--font-lato), sans-serif',
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
+                      {p.label}
+                    </span>
+                  ))}
+                </div>
+              </ChartCard>
+            )}
+
+            {/* ── Remaining charts (dark themed) ── */}
             {chartData.length >= 2 && (
               <>
                 <ChartCard title="Net Carbs per Day (g)">
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={chartData} margin={CHART_MARGIN}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE0" />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v) => [`${v}g`, 'Net Carbs']}
-                      />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2C4036" />
+                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8FA396' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#8FA396' }} />
+                      <Tooltip contentStyle={DARK_TT} formatter={(v) => [`${v}g`, 'Net Carbs']} />
                       <ReferenceLine y={20} stroke="#D4714A" strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value: 'Keto limit 20g', position: 'insideTopRight', fontSize: 9, fill: '#D4714A' }} />
                       <Line type="monotone" dataKey="netCarbs" stroke="#D4714A" strokeWidth={2}
@@ -160,38 +232,17 @@ export default function PastPage() {
                   </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard title="Calories per Day (kcal)">
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={chartData} margin={CHART_MARGIN}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE0" />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v) => [`${v} kcal`, 'Calories']}
-                      />
-                      <ReferenceLine y={1800} stroke="#C9A84C" strokeDasharray="5 3" strokeWidth={1.5}
-                        label={{ value: '1800 kcal target', position: 'insideTopRight', fontSize: 9, fill: '#C9A84C' }} />
-                      <Line type="monotone" dataKey="calories" stroke="#4A7C59" strokeWidth={2}
-                        dot={{ fill: '#4A7C59', r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartCard>
-
                 <ChartCard title="Daily Macro Split (%)">
                   <ResponsiveContainer width="100%" height={160}>
                     <AreaChart data={chartData} margin={CHART_MARGIN}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE0" />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} domain={[0, 100]} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v, name) => [`${v}%`, name]}
-                      />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Area type="monotone" dataKey="fatPct"     stackId="1" name="Fat"     stroke="#C9A84C" fill="#C9A84C" fillOpacity={0.7} />
-                      <Area type="monotone" dataKey="proteinPct" stackId="1" name="Protein" stroke="#4A7C59" fill="#4A7C59" fillOpacity={0.7} />
-                      <Area type="monotone" dataKey="carbsPct"   stackId="1" name="Carbs"   stroke="#D4714A" fill="#D4714A" fillOpacity={0.7} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2C4036" />
+                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8FA396' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#8FA396' }} domain={[0, 100]} />
+                      <Tooltip contentStyle={DARK_TT} formatter={(v, name) => [`${v}%`, name]} />
+                      <Legend wrapperStyle={{ fontSize: 10, color: '#8FA396' }} />
+                      <Area type="monotone" dataKey="fatPct"     stackId="1" name="Fat"     stroke="#C9A84C" fill="#C9A84C" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="proteinPct" stackId="1" name="Protein" stroke="#4ADE80" fill="#4ADE80" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="carbsPct"   stackId="1" name="Carbs"   stroke="#D4714A" fill="#D4714A" fillOpacity={0.6} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -199,15 +250,12 @@ export default function PastPage() {
                 <ChartCard title="Keto Score per Day">
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={chartData} margin={CHART_MARGIN}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE0" />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v) => [v, 'Avg Keto Score']}
-                      />
-                      <ReferenceLine y={7} stroke="#4A7C59" strokeDasharray="5 3" strokeWidth={1.5}
-                        label={{ value: 'Keto threshold', position: 'insideTopRight', fontSize: 9, fill: '#4A7C59' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2C4036" />
+                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8FA396' }} />
+                      <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: '#8FA396' }} />
+                      <Tooltip contentStyle={DARK_TT} formatter={(v) => [v, 'Avg Keto Score']} />
+                      <ReferenceLine y={7} stroke="#4ADE80" strokeDasharray="5 3" strokeWidth={1.5}
+                        label={{ value: 'Keto threshold', position: 'insideTopRight', fontSize: 9, fill: '#4ADE80' }} />
                       <Bar dataKey="ketoScore" radius={[4, 4, 0, 0]}>
                         {chartData.map((entry, i) => (
                           <Cell key={i} fill={scoreColor(entry.ketoScore)} />
@@ -216,73 +264,85 @@ export default function PastPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
-
-                <ChartCard title="Daily Macros — Grams">
-                  <ResponsiveContainer width="100%" height={160}>
-                    <BarChart data={chartData} margin={CHART_MARGIN}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE0" />
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#8A9280' }} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E8DCC8' }}
-                        formatter={(v, name) => [`${v}g`, name]}
-                      />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Bar dataKey="fat"        name="Fat"     stackId="a" fill="#C9A84C" />
-                      <Bar dataKey="protein"    name="Protein" stackId="a" fill="#4A7C59" />
-                      <Bar dataKey="totalCarbs" name="Carbs"   stackId="a" fill="#D4714A" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartCard>
               </>
             )}
 
             {/* ── Smart Observations ── */}
             {observations.length > 0 && (
-              <div className="bg-white rounded-xl border border-[#E8DCC8] p-4 shadow-sm space-y-2">
-                <p className="text-[0.68rem] font-bold tracking-widest uppercase text-[#8A9280] mb-1">Smart Observations</p>
-                {observations.map((obs, i) => (
-                  <div key={i} className="flex items-start gap-2.5 text-sm text-[#2D4A3E]">
-                    <span className="flex-shrink-0 text-base">{obs.icon}</span>
-                    <span>{obs.text}</span>
-                  </div>
-                ))}
+              <div style={{
+                background: '#1E2E26', borderRadius: 14,
+                border: '1px solid #2C4036', padding: 16,
+              }}>
+                <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 10, fontFamily: 'var(--font-lato), sans-serif' }}>
+                  Smart Observations
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {observations.map((obs, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: '0.85rem', color: '#F3EEE2', fontFamily: 'var(--font-lato), sans-serif' }}>
+                      <span style={{ flexShrink: 0, fontSize: '1rem' }}>{obs.icon}</span>
+                      <span>{obs.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Achievements ── */}
+            {gs && (
+              <div>
+                <h3 style={{
+                  fontFamily: 'var(--font-playfair), serif',
+                  fontSize: '1rem', fontWeight: 700, color: '#F3EEE2', marginBottom: 10,
+                }}>
+                  Achievements
+                </h3>
+                <BadgeShelf
+                  achievements={gs.achievements}
+                  seenIds={gs.journey.seenAchievements}
+                />
               </div>
             )}
 
             {/* ── Day-by-day summary rows ── */}
-            <div className="space-y-2">
-              <p className="text-[0.68rem] font-bold tracking-widest uppercase text-[#8A9280]">Day Summary</p>
-              {groups.map(g => {
-                const t   = dayTotals(g.meals)
-                const avg = avgKetoScore(g.meals)
-                return (
-                  <div key={g.dateKey}
-                    className="flex items-center gap-3 bg-white rounded-xl border border-[#E8DCC8] px-4 py-3 shadow-sm">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-[#2D4A3E] text-sm">{g.label}</span>
-                        <span className="text-[0.68rem] text-[#8A9280]">{g.meals.length} meal{g.meals.length !== 1 ? 's' : ''}</span>
+            <div>
+              <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 8, fontFamily: 'var(--font-lato), sans-serif' }}>
+                Day Summary
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {groups.map(g => {
+                  const t   = dayTotals(g.meals)
+                  const avg = avgKetoScore(g.meals)
+                  return (
+                    <div key={g.dateKey} style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      background: '#1E2E26', borderRadius: 12, border: '1px solid #2C4036',
+                      padding: '12px 16px',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, color: '#F3EEE2', fontSize: '0.85rem', fontFamily: 'var(--font-lato), sans-serif' }}>{g.label}</span>
+                          <span style={{ fontSize: '0.68rem', color: '#8FA396', fontFamily: 'var(--font-lato), sans-serif' }}>{g.meals.length} meal{g.meals.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0 12px', flexWrap: 'wrap', marginTop: 3, fontSize: '0.75rem', color: '#8FA396', fontFamily: 'var(--font-lato), sans-serif' }}>
+                          <span style={{ fontWeight: 700, color: '#F3EEE2' }}>{Math.round(t.calories)} kcal</span>
+                          <span>Net carbs {fmt(t.net_carbs_g)}g</span>
+                          <span>Fat {fmt(t.fat_g)}g</span>
+                        </div>
                       </div>
-                      <div className="flex gap-x-3 gap-y-0 flex-wrap mt-0.5 text-[0.75rem] text-[#4A5240]">
-                        <span className="font-bold text-[#2D4A3E]">{Math.round(t.calories)} kcal</span>
-                        <span>Net carbs {fmt(t.net_carbs_g)}g</span>
-                        <span>Fat {fmt(t.fat_g)}g</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: scoreColor(avg) }}>
+                          {avg.toFixed(1)}★
+                        </span>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, color: scoreColor(avg), fontFamily: 'var(--font-lato), sans-serif' }}>
+                          {scoreLabel(avg)}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center flex-shrink-0">
-                      <span className="text-sm font-bold" style={{ color: scoreColor(avg) }}>
-                        {avg.toFixed(1)}★
-                      </span>
-                      <span className="text-[0.6rem] font-bold" style={{ color: scoreColor(avg) }}>
-                        {scoreLabel(avg)}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

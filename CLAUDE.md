@@ -18,65 +18,87 @@ Requires `ANTHROPIC_API_KEY` in `.env.local` at the project root. Both API route
 
 ## Architecture
 
-Next.js 15 App Router, TypeScript, Tailwind CSS, Recharts. Three client-side pages backed by two server-side API routes.
+Next.js 15 App Router, TypeScript, Tailwind CSS, Recharts. **Game-first design** — the home screen is a gamified "Ketosis Journey" hub; meal analysis is the core daily action accessible via a raised center nav button.
 
-### Pages (app router, each a client component)
+### Information Architecture (nav with raised center Fuel button)
 
-| Route | File | Purpose |
-|---|---|---|
-| `/` | `app/page.tsx` | Food input + photo upload → AI analysis → results + auto-save |
-| `/today` | `app/today/page.tsx` | Today's meals from localStorage, macro bar, smart tips |
-| `/past` | `app/past/page.tsx` | Full history, Recharts trend charts, smart observations |
+| Slot | Route | File | Purpose |
+|---|---|---|---|
+| **Journey** | `/` | `app/page.tsx` | Game hub: Keto Meter, XP/level, missions, flu forecast, body cues, hydration, badges |
+| **Today** | `/today` | `app/today/page.tsx` | Today's meals + mission + flu/hydration strip + macro bar + smart tips |
+| **⊕ Fuel** (raised center) | `/analyse` | `app/analyse/page.tsx` | Core action: food analysis + photo upload → AI → results → "Log & Earn XP" |
+| **Progress** | `/past` | `app/past/page.tsx` | Journey timeline (ketosis level curve) + Net Carbs/Macro%/Keto Score charts + achievements + day summaries |
 
-`app/layout.tsx` renders `<NavBar>` (fixed bottom, 64px) globally. Body has `pb-[64px]` clearance.
+`app/layout.tsx` renders `<NavBar>` (fixed bottom, 64px) globally. Body has `pb-[64px]` clearance. The center Fuel button is a raised gold circle (`marginTop: -18px`).
+
+### Game engine — `app/lib/ketosis.ts`
+
+All game state derives from `keto_meal_history` + a small `keto_journey` anchor in localStorage. Stored state is minimal; everything else is computed. Key exports:
+
+- `Journey` interface + `loadJourney()`, `startJourney(backdateDays)`, `resetJourney()`, `markAchievementsSeen()`, `setHydration()`, `getHydration()`
+- `KETO_CARB_LIMIT = 25` g net carbs/day for a "compliant" day
+- `computeKetosisModel(journey, groups)` — walks day-by-day from startDate, classifies compliant/broken/unlogged, maintains streak/level/momentum via physiology-anchored `LEVEL_ANCHORS` curve
+- `predictKetoFlu(model)` — active on days 2–5 of genuine fresh transition, peaks 3–4
+- `dailyMission(model, todayTotals, todayMealCount)` — phase-tuned daily carb targets
+- `dailyBodyCue(model)` — science narrative with hydration targets + supplement recommendations
+- `computeProgress(model, allMeals, achievements)` — XP/levels (6 titles: Carb Dependent → Fat-Adapted Master)
+- `computeAchievements(model, allMeals)` — 9 achievement badges
+- `buildGameState()` — convenience aggregator, returns full `GameState | null`
+
+### Game UI components (`app/components/`)
+
+| Component | Purpose |
+|---|---|
+| `KetoMeter.tsx` | Hero semicircular SVG gauge, 5 zone arcs, animated needle |
+| `XpBar.tsx` | Level title + gold progress bar + "X XP to next" |
+| `MissionCard.tsx` | Today's mission text + live progress bar (net carbs vs target) |
+| `FluForecast.tsx` | Flu-watch card with status/severity pills, mitigation tips |
+| `HydrationCard.tsx` | Day's water target, tap-to-track glasses counter, supplement chips |
+| `BadgeShelf.tsx` | Responsive grid of achievement badges with NEW flash |
+| `StreakFlame.tsx` | Flame + streak count (sm/lg variants) |
+| `OnboardingHero.tsx` | Two-path start: "Starting keto today" vs "Already on keto" + duration picker |
 
 ### API routes
 
-- **`/api/analyze`** — POST `{ food_input: string }` → full `NutritionData` JSON. Calls `claude-sonnet-4-6` with a structured keto-scoring prompt. Returns per-100g and per-quantity macros, keto score 1–10, recommendation, and keto alternatives when score ≤ 6. Validates all returned numeric fields (clamps negatives, NaN, Infinity).
-- **`/api/vision`** — POST `{ image_data: string (base64), media_type: string }` → `{ detected_food, estimated_weight_g, confidence }`. Used to pre-fill the food input from a photo. Client rejects files over 5 MB before upload.
+- **`/api/analyze`** — POST `{ food_input: string }` → full `NutritionData` JSON. Calls `claude-sonnet-4-6` with a structured keto-scoring prompt. Returns per-100g and per-quantity macros, keto score 1–10, recommendation, and keto alternatives when score ≤ 6.
+- **`/api/vision`** — POST `{ image_data: string (base64), media_type: string }` → `{ detected_food, estimated_weight_g, confidence }`. Client compresses images to ~2.5 MB via Canvas API before upload (Vercel 4.5 MB body limit).
 
-Both routes share `app/api/_rateLimit.ts` — an **in-memory** rate limiter (20 req/min per IP). **This does not work on Vercel** (each serverless invocation may get a fresh instance). Replace with Upstash Redis + `@upstash/ratelimit` before multi-user deployment.
+Both routes share `app/api/_rateLimit.ts` — in-memory rate limiter (20 req/min per IP). **Does not work on Vercel** (serverless instances). Replace with Upstash Redis before multi-user deployment.
 
 ### Shared state — `app/lib/history.ts`
 
-All meal data lives in `localStorage` under key `keto_meal_history`. No database. Key exports:
+All meal data lives in `localStorage` under key `keto_meal_history`. No database. Key exports: `MealEntry`, `MacroValues`, `DayGroup`, `loadHistory()`, `saveEntry()`, `groupByDay()`, `dayTotals()`, `macroPct()`, `avgKetoScore()`, `generateTips()`, `generateObservations()`, `updateEntry()`, `deleteEntry()`, `generateSummaryText()`.
 
-- `MealEntry` / `MacroValues` — shared types used across all three pages
-- `saveEntry(entry)` — prepends and persists; called in `page.tsx` after every successful analysis
-- `groupByDay()` → `DayGroup[]` — groups entries by calendar day, newest first
-- `dayTotals()`, `macroPct()`, `avgKetoScore()` — aggregation helpers
-- `generateTips()` — rule-based smart tips for the Today tab (net carbs vs 20g limit, fat %, protein %, avg score)
-- `generateObservations()` — trend observations for the Past tab (streak, 7-day avg, best day, carb trend)
+### Styling conventions — DARK THEME
 
-### Styling conventions
+**Full dark reskin** across all pages. Body background: `#14201A` (near-black green).
 
-**NavBar uses 100% inline styles** (not Tailwind classes) to guarantee rendering — Tailwind purging caused the nav to disappear in some builds. Do not convert it to CSS classes.
+**Dark palette tokens** (in `tailwind.config.ts`):
+- `ink` (#14201A) — app background
+- `ink-raised` (#1E2E26) — cards / panels
+- `ink-line` (#2C4036) — borders / hairlines
+- `gold` (#C9A84C) — primary accent
+- `gold-bright` (#E6C24A) — glowing highlights, meter needle, active states
+- `text-hi` (#F3EEE2) — primary text (warm off-white)
+- `text-lo` (#8FA396) — muted text
 
-Custom Tailwind colors (defined in `tailwind.config.ts`):
-- `cream` (#FAF6EF) — page background
-- `green-rich` (#2D4A3E) — header/primary dark green
-- `gold` (#C9A84C) — fat macro, active nav indicator
-- `carbs` (#D4714A) — carbs macro / warning color
-- `protein` (#4A7C59) — protein macro / success color
+**Critical layout rules** (learned from production breakage):
+- **NavBar uses 100% inline styles** — Tailwind purging has caused the nav to disappear. Do NOT convert to CSS classes.
+- **Flex ratios MUST use inline `style={{ flex: '2 1 0%' }}`** — not Tailwind arbitrary values (purge risk).
+- **Hidden file inputs MUST use `style={{ display: 'none' }}`** — not Tailwind `hidden` class. Place them OUTSIDE flex containers.
 
-Fonts loaded via `next/font/google`: `--font-playfair` (headings) and `--font-lato` (body), applied as CSS variables in `app/layout.tsx`.
+Fonts: `--font-playfair` (headings) + `--font-lato` (body) via CSS variables.
 
-### Charts (Recharts)
+### Charts (Recharts, dark themed)
 
-Past Meals page renders 5 charts — all wrapped in `<ResponsiveContainer width="100%" height={160}>`:
-1. Net Carbs line chart — 20g reference line
-2. Calories line chart — 1800 kcal reference line
+Progress page renders 4 charts with dark theming (grid `#2C4036`, ticks `#8FA396`, dark tooltip `#1E2E26`):
+1. **Ketosis Level over time** — hero area chart with zone reference bands (NEW)
+2. Net Carbs line chart — 20g reference line
 3. Macro % stacked area chart
-4. Keto Score bar chart — bars colored by `scoreColor()` (green/gold/red)
-5. Daily Macros grams stacked bar chart
+4. Keto Score bar chart — bars colored by `scoreColor()`
 
-Charts only render when `chartData.length >= 2` (i.e. data from at least 2 different calendar days).
+Removed in Phase 5: Calories line chart, Daily Macros grams bar chart.
 
 ### PWA / Add to Home Screen
 
-`public/manifest.json` + `public/icon.svg` make the app installable. Meta tags are set via Next.js `metadata.appleWebApp` in `app/layout.tsx`.
-
-`app/components/AddToHomeScreen.tsx` renders a pill button at the top-right of the Analyse page:
-- **Android/Chrome** — captures `beforeinstallprompt`, triggers native install sheet on click. Only fires over HTTPS, so the button is invisible in local dev.
-- **iOS Safari** — detects via user-agent, shows a tooltip with Share → "Add to Home Screen" instructions.
-- Hides permanently if already in standalone mode or if the user dismisses it (flag stored under `keto_a2hs_dismissed` in localStorage).
+`public/manifest.json` + `public/icon.svg` make the app installable. `AddToHomeScreen` component renders on the Journey hub page.
