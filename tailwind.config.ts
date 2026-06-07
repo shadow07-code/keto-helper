@@ -24,6 +24,9 @@ const config: Config = {
         'ink-line':   '#2C4036',
         'text-hi':    '#F3EEE2',
         'text-lo':    '#8FA396',
+        wine:         '#B8344C',
+        'wine-bright':'#D44866',
+        'wine-deep':  '#8B2238',
       },
       fontFamily: {
         playfair: ['var(--font-playfair)', 'serif'],

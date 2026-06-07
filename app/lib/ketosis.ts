@@ -340,9 +340,15 @@ export interface Mission {
 
 export function dailyMission(model: KetosisModel, todayTotals: MacroValues, todayMealCount: number): Mission {
   const s = model.streak
+  const todayStatus     = model.dayStates.at(-1)?.status
+  const yesterdayStatus = model.dayStates.at(-2)?.status
   let title: string, detail: string, targetG: number
 
-  if (model.dayStates.at(-1)?.status === 'broken') {
+  if (todayStatus === 'broken') {
+    // Already over today's carb budget — can't re-enter ketosis until tomorrow.
+    title = 'Damage control'; targetG = KETO_CARB_LIMIT
+    detail = 'Today’s carbs are already over the limit. Hold steady — no more carbs — and tomorrow is your comeback day.'
+  } else if (yesterdayStatus === 'broken') {
     title = 'Comeback'; targetG = 20
     detail = 'Re-enter ketosis today — under 20g net carbs. Your body remembers how.'
   } else if (s <= 0) {
@@ -391,8 +397,13 @@ export interface BodyCue {
 
 export function dailyBodyCue(model: KetosisModel): BodyCue {
   const s = model.streak
-  if (model.dayStates.at(-1)?.status === 'broken') {
-    return { icon: '🔄', headline: 'Refuel reset', detail: 'A carb day refilled some glycogen — get back under 20g and you’ll re-enter ketosis fast.', hydrationMl: 3000, supplements: ['sodium'], tone: 'warn' }
+  const todayStatus     = model.dayStates.at(-1)?.status
+  const yesterdayStatus = model.dayStates.at(-2)?.status
+  if (todayStatus === 'broken') {
+    return { icon: '⚠️', headline: 'Glycogen refilling', detail: 'Today’s carb spike is topping up your glycogen stores. Stop here — your ketosis returns within 24–48 hours of staying low.', hydrationMl: 3000, supplements: ['sodium'], tone: 'warn' }
+  }
+  if (yesterdayStatus === 'broken') {
+    return { icon: '🔄', headline: 'Refuel reset', detail: 'Yesterday refilled some glycogen — get back under 20g today and you’ll re-enter ketosis fast.', hydrationMl: 3000, supplements: ['sodium'], tone: 'warn' }
   }
   if (s <= 0)  return { icon: '🫗', headline: 'Your tank is draining', detail: 'You’re burning through stored glycogen. You’ll shed water weight — replace fluids and salt.', hydrationMl: 3000, supplements: ['sea salt'], tone: 'neutral' }
   if (s === 1) return { icon: '⚡', headline: 'The switch is flipping', detail: 'Insulin is dropping and your kidneys are flushing sodium — replace salt to stay ahead of the flu.', hydrationMl: 3000, supplements: ['sodium', 'potassium'], tone: 'warn' }

@@ -332,10 +332,11 @@ export default function AnalysePage() {
         <p style={{
           fontFamily: 'var(--font-lato), sans-serif',
           fontSize: '0.72rem',
-          color: '#8FA396',
+          color: '#D44866',
           marginTop: 6,
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
+          fontWeight: 700,
         }}>
           Log a meal — earn XP, move your meter
         </p>
@@ -434,7 +435,7 @@ export default function AnalysePage() {
             width: '100%',
             marginTop: 12,
             padding: '14px 28px',
-            background: '#2D4A3E',
+            background: 'linear-gradient(135deg, #B8344C, #8B2238)',
             color: '#F3EEE2',
             border: 'none',
             borderRadius: 8,
@@ -446,6 +447,7 @@ export default function AnalysePage() {
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.5 : 1,
             transition: 'opacity 0.2s',
+            boxShadow: '0 4px 16px rgba(184,52,76,0.3)',
           }}
         >
           {loading ? <span className="spinner">&#x27F3;</span> : 'Analyse'}
@@ -550,7 +552,7 @@ export default function AnalysePage() {
             borderBottom: '1px solid #2C4036',
           }}>
             <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 6 }}>Analysed Food</span>
+              <span style={{ display: 'block', fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#D44866', marginBottom: 6 }}>Analysed Food</span>
               <h2 style={{ fontFamily: 'var(--font-playfair), serif', fontWeight: 700, color: '#F3EEE2', lineHeight: 1.2, fontSize: 'clamp(1.4rem, 4vw, 2rem)', margin: 0 }}>
                 {data.corrected_name}
               </h2>
@@ -581,13 +583,13 @@ export default function AnalysePage() {
                   letterSpacing: '0.14em',
                   textTransform: 'uppercase',
                   fontFamily: 'var(--font-lato), sans-serif',
-                  borderBottom: `2px solid ${tab === t ? '#E6C24A' : 'transparent'}`,
+                  borderBottom: `2px solid ${tab === t ? '#D44866' : 'transparent'}`,
                   marginBottom: -1,
                   background: 'none',
                   border: 'none',
                   borderBottomWidth: 2,
                   borderBottomStyle: 'solid',
-                  borderBottomColor: tab === t ? '#E6C24A' : 'transparent',
+                  borderBottomColor: tab === t ? '#D44866' : 'transparent',
                   color: tab === t ? '#F3EEE2' : '#8FA396',
                   cursor: 'pointer',
                   transition: 'color 0.2s, border-color 0.2s',

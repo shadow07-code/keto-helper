@@ -275,7 +275,7 @@ export default function TodayPage() {
         borderBottom: '1px solid #2C4036',
       }}>
         <div style={{ maxWidth: 540, margin: '0 auto' }}>
-          <p style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 4, fontFamily: 'var(--font-lato), sans-serif' }}>Today</p>
+          <p style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#D44866', marginBottom: 4, fontFamily: 'var(--font-lato), sans-serif' }}>Today</p>
           <h1 style={{ fontFamily: 'var(--font-playfair), serif', fontWeight: 700, fontSize: '1.5rem', lineHeight: 1.2, color: '#F3EEE2', margin: 0 }}>{todayLabel}</h1>
 
           {!isEmpty && (
@@ -344,14 +344,14 @@ export default function TodayPage() {
               border: '1px solid #2C4036',
               padding: 16,
             }}>
-              <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 12, fontFamily: 'var(--font-lato), sans-serif' }}>Today&apos;s Macro Split</p>
+              <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D44866', marginBottom: 12, fontFamily: 'var(--font-lato), sans-serif' }}>Today&apos;s Macro Split</p>
               <MacroBar totals={totals} />
             </div>
 
             {/* Smart tips */}
             {tips.length > 0 && (
               <div>
-                <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 8, fontFamily: 'var(--font-lato), sans-serif' }}>Smart Insights</p>
+                <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D44866', marginBottom: 8, fontFamily: 'var(--font-lato), sans-serif' }}>Smart Insights</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {tips.map((tip, i) => {
                     const colors = tip.level === 'ok'
@@ -378,7 +378,7 @@ export default function TodayPage() {
 
             {/* Meal list */}
             <div>
-              <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 8, fontFamily: 'var(--font-lato), sans-serif' }}>
+              <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D44866', marginBottom: 8, fontFamily: 'var(--font-lato), sans-serif' }}>
                 Meals ({meals.length})
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
