@@ -18,7 +18,15 @@ Requires `ANTHROPIC_API_KEY` in `.env.local` at the project root. Both API route
 
 ## Architecture
 
-Next.js 15 App Router, TypeScript, Tailwind CSS, Recharts. **Game-first design** — the home screen is a gamified "Ketosis Journey" hub; meal analysis is the core daily action accessible via a raised center nav button.
+Next.js 15 App Router, TypeScript, Tailwind CSS, Recharts. **Intelligent, game-first design** — the home screen is a gamified "Ketosis Journey" hub powered by a personalized metabolic model + an AI coach; meal analysis is the core daily action accessible via a raised center nav button.
+
+### Intelligence layer (the "scientific AI keto coach")
+
+The app personalizes its ketosis estimate to the individual and layers AI coaching on top:
+
+- **`app/lib/profile.ts`** — user profile (`keto_profile`): name, height, weight, age bracket, sex. Derives **BMR/TDEE** via Mifflin–St Jeor (age-bracket midpoints) and an individualized **glycogen capacity** (~6.5 g/kg, bounded 300–650 g). Body fields are optional; the engine falls back to population averages and the coach lowers confidence.
+- **Metabolic meter** (in `ketosis.ts`) — `computeKetosisModel(journey, groups, profile?)` runs a **day-by-day glycogen-depletion + fat-adaptation simulation**: logged carbs refill glycogen, metabolism (scaled by BMR) burns it, adaptation builds asymptotically while genuinely in ketosis. The displayed level blends glycogen depletion (60%) with adaptation (40%), with a visible dip on a carb-over day. So the meter responds to *who the user is* and *what they actually ate*, not just streak length. `dayQuality(totals)` scores each day 0–1 (carbs + fat ratio + protein moderation); XP is **quality-weighted**.
+- **AI coach** — `/api/coach` (Claude `claude-sonnet-4-6`) reads the profile + computed model + recent logs and returns `{ focus, state_estimate, confidence, assessment, reasoning, guidance[] }`, addressed by name, with an estimated ketone range. It is explicitly honest that estimates aren't a substitute for a blood/breath ketone meter. `app/lib/coach.ts` builds the payload and **caches per-day** keyed by a data hash (`keto_coach_cache`) — only re-queries when something material changes. `CoachCard.tsx` renders it on the Journey hub.
 
 ### Information Architecture (nav with raised center Fuel button)
 

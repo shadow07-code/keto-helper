@@ -7,22 +7,18 @@
 // `keto_journey` anchor. Stored state is intentionally minimal and robust.
 
 import {
-  loadHistory, groupByDay, dayTotals,
+  loadHistory, groupByDay, dayTotals, macroPct,
   type MealEntry, type MacroValues, type DayGroup,
 } from './history'
+import {
+  loadProfile, effectiveBMR, glycogenCapacityG,
+  type Profile,
+} from './profile'
 
 // ─── Constants ─────────────────────────────────────────────────────────
 
 export const KETO_CARB_LIMIT = 25   // g net carbs/day for a "compliant" day
 export const JOURNEY_KEY     = 'keto_journey'
-
-// Physiology-anchored progression: consecutive compliant days → ketosis level (0–100).
-// Asymptotic toward 100 — fast early gains (glycogen drain, the switch), slow
-// approach to full fat-adaptation.
-const LEVEL_ANCHORS: [number, number][] = [
-  [0, 5], [1, 18], [2, 33], [3, 48], [4, 60], [5, 68], [6, 74], [7, 79],
-  [10, 85], [14, 90], [21, 95], [30, 98], [45, 100],
-]
 
 export interface Phase { key: string; label: string; color: string; min: number; max: number }
 
@@ -119,21 +115,6 @@ export function getHydration(dateKey: string): number {
 
 // ─── Curve + zone helpers ──────────────────────────────────────────────
 
-function curve(day: number): number {
-  if (day <= 0) return LEVEL_ANCHORS[0][1]
-  const last = LEVEL_ANCHORS[LEVEL_ANCHORS.length - 1]
-  if (day >= last[0]) return last[1]
-  for (let i = 0; i < LEVEL_ANCHORS.length - 1; i++) {
-    const [d0, l0] = LEVEL_ANCHORS[i]
-    const [d1, l1] = LEVEL_ANCHORS[i + 1]
-    if (day >= d0 && day <= d1) {
-      const t = (day - d0) / (d1 - d0)
-      return l0 + t * (l1 - l0)
-    }
-  }
-  return last[1]
-}
-
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 
 export function ketoZone(level: number): Phase {
@@ -149,6 +130,9 @@ export interface DayState {
   dayIndex: number       // 1-based day of the journey
   status:   DayStatus
   netCarbs: number
+  fatPct:   number       // % of kcal from fat (0 when unlogged)
+  quality:  number | null// 0–1 ketogenic quality of the day (null if unlogged)
+  glyPct:   number       // glycogen fullness 0–100 at end of this day
   level:    number       // 0–100 at end of this day
   streak:   number       // consecutive compliant days at end of this day
 }
@@ -161,24 +145,74 @@ export interface KetosisModel {
   genuineStart: boolean     // fresh transition (seedStreak 0) → flu arc applies
   hadBreak:     boolean     // any broken day occurred
   daysSinceStart: number
+  glyPct:       number      // current glycogen fullness 0–100 (low = deep ketosis)
+  adaptation:   number      // current fat-adaptation memory 0–100
+  avgQuality:   number | null // avg ketogenic quality over recent logged days
+  personalized: boolean     // true when the model used real body data
   dayStates:    DayState[]
   levelHistory: { day: number; dateKey: string; level: number }[]
   streakStartIndex: number  // index in dayStates where the current streak began (-1 if none)
 }
 
-export function computeKetosisModel(journey: Journey, groups: DayGroup[]): KetosisModel {
+// ─── Per-day ketogenic quality ─────────────────────────────────────────
+// Not all "compliant" days are equal. A 5 g-carb / 75%-fat day drives far
+// deeper ketosis than a 24 g-carb / 45%-fat day. Quality (0–1) blends three
+// signals and feeds both the metabolic sim and quality-weighted XP.
+
+export interface MacroQuality {
+  quality:      number   // 0–1 overall
+  carbScore:    number   // 1 at 0g, 0 at ≥50g net carbs
+  fatScore:     number   // 0 at ≤45% kcal, 1 at ≥70% kcal
+  proteinScore: number   // 1 up to 35% kcal, penalised above (gluconeogenesis)
+  fatPct:       number   // % of kcal from fat
+  proteinPct:   number   // % of kcal from protein
+}
+
+export function dayQuality(totals: MacroValues): MacroQuality {
+  const pct        = macroPct(totals)
+  const fatFrac    = pct.fat_pct / 100
+  const proteinFrac= pct.protein_pct / 100
+  const carbScore    = clamp(1 - totals.net_carbs_g / 50, 0, 1)
+  const fatScore     = clamp((fatFrac - 0.45) / 0.25, 0, 1)
+  const proteinScore = proteinFrac <= 0.35 ? 1 : clamp(1 - (proteinFrac - 0.35) / 0.25, 0.3, 1)
+  const quality = 0.55 * carbScore + 0.30 * fatScore + 0.15 * proteinScore
+  return { quality, carbScore, fatScore, proteinScore, fatPct: pct.fat_pct, proteinPct: pct.protein_pct }
+}
+
+// Walks the journey day-by-day as a metabolic simulation. Each day, logged
+// carbs refill glycogen while the body's metabolism (scaled by BMR) burns
+// through it; fat-adaptation builds while genuinely in ketosis and decays
+// otherwise. The displayed level blends glycogen depletion with adaptation,
+// so the meter responds to *who the user is* and *what they actually ate* —
+// not merely how many days in a row they stayed compliant.
+export function computeKetosisModel(
+  journey: Journey,
+  groups: DayGroup[],
+  profile: Profile | null = null,
+): KetosisModel {
   const dayMap = new Map<string, MealEntry[]>(groups.map(g => [g.dateKey, g.meals]))
+
+  const capG       = glycogenCapacityG(profile)   // personalised glycogen stores (g)
+  const bmr        = effectiveBMR(profile)         // metabolic rate (kcal/day)
+  const burnFactor = bmr / 1600                    // larger engine drains faster
+  const BASE_BURN  = 32                            // % of capacity burned on a ~0-carb day
 
   const start = new Date(journey.startDate); start.setHours(0, 0, 0, 0)
   const today = new Date();                  today.setHours(0, 0, 0, 0)
 
-  let streak    = journey.seedStreak
-  let level     = curve(streak)
-  let maxStreak = streak
+  // Seed state from any "already on keto" head-start.
+  const seed = journey.seedStreak
+  let glyPct     = seed > 0 ? clamp(100 - Math.min(seed, 5) * 19, 4, 100) : 100
+  let adaptation = seed > 0 ? clamp((Math.min(seed, 45) / 45) * 92, 0, 92) : 0
+  let level      = clamp(0.6 * (100 - glyPct) + 0.4 * adaptation, 0, 100)
+
+  let streak    = seed
+  let maxStreak = seed
   let hadBreak  = false
 
   const dayStates: DayState[] = []
   const levelHistory: { day: number; dateKey: string; level: number }[] = []
+  const qualitySamples: number[] = []
 
   let dayIndex = 0
   for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
@@ -188,33 +222,58 @@ export function computeKetosisModel(journey: Journey, groups: DayGroup[]): Ketos
 
     let status: DayStatus
     let netCarbs = 0
+    let quality: number | null = null
+    let fatPct = 0
+
     if (meals.length === 0) {
       status = 'unlogged'
+      // Unknown intake → assume a light refeed drift; adaptation eases off.
+      glyPct = clamp(glyPct + 3, 0, 100)
+      adaptation = Math.max(0, adaptation - 3)
     } else {
-      netCarbs = dayTotals(meals).net_carbs_g
+      const totals = dayTotals(meals)
+      netCarbs = totals.net_carbs_g
+      const q  = dayQuality(totals)
+      quality  = q.quality
+      fatPct   = q.fatPct
+      qualitySamples.push(q.quality)
       status = netCarbs <= KETO_CARB_LIMIT ? 'compliant' : 'broken'
-    }
 
-    if (status === 'compliant') {
-      streak += 1
-      level = curve(streak)
-    } else if (status === 'broken') {
-      hadBreak = true
-      streak = Math.round(streak * 0.25)   // glycogen refills; veterans keep some
-      level = curve(streak) * 0.5          // visible dip on the day itself
-    } else {
-      // unlogged — streak pauses, gentle decay (unless we've never started moving)
-      if (streak === 0 && level <= curve(0)) {
-        level = curve(0)
+      // Glycogen balance: carbs refill, metabolism burns (cleaner days spare less).
+      const refillPct = (netCarbs / capG) * 100
+      const burnPct   = BASE_BURN * burnFactor * (0.6 + 0.4 * q.quality)
+      glyPct = clamp(glyPct + refillPct - burnPct, 0, 100)
+
+      // Fat-adaptation builds asymptotically while genuinely in ketosis.
+      if (glyPct < 55 && q.quality >= 0.5) {
+        adaptation = clamp(adaptation + (100 - adaptation) * 0.10, 0, 100)
       } else {
-        level = curve(streak) * 0.95
+        adaptation = Math.max(0, adaptation - 6)
       }
     }
 
-    level = clamp(level, 0, 100)
+    // Streak bookkeeping drives badges & missions (not the meter directly).
+    if (status === 'compliant') {
+      streak += 1
+    } else if (status === 'broken') {
+      hadBreak = true
+      streak = Math.round(streak * 0.25)
+    } // unlogged → streak pauses
     maxStreak = Math.max(maxStreak, streak)
 
-    dayStates.push({ dateKey: key, dayIndex, status, netCarbs, level: Math.round(level), streak })
+    // Displayed ketosis level: depletion + adaptation, with a visible carb-day dip.
+    let dayLevel = 0.6 * (100 - glyPct) + 0.4 * adaptation
+    if (status === 'broken') dayLevel *= 0.65
+    level = clamp(dayLevel, 0, 100)
+
+    dayStates.push({
+      dateKey: key, dayIndex, status, netCarbs,
+      fatPct: Math.round(fatPct),
+      quality,
+      glyPct: Math.round(glyPct),
+      level: Math.round(level),
+      streak,
+    })
     levelHistory.push({ day: dayIndex, dateKey: key, level: Math.round(level) })
   }
 
@@ -227,6 +286,8 @@ export function computeKetosisModel(journey: Journey, groups: DayGroup[]): Ketos
     }
   }
 
+  const recentQ = qualitySamples.slice(-7)
+  const avgQuality = recentQ.length ? recentQ.reduce((s, q) => s + q, 0) / recentQ.length : null
   const genuineStart = journey.seedStreak === 0
 
   return {
@@ -237,6 +298,10 @@ export function computeKetosisModel(journey: Journey, groups: DayGroup[]): Ketos
     genuineStart,
     hadBreak,
     daysSinceStart: dayIndex,
+    glyPct: Math.round(glyPct),
+    adaptation: Math.round(adaptation),
+    avgQuality,
+    personalized: !!(profile && profile.weightKg && profile.heightCm && profile.ageBracket),
     dayStates,
     levelHistory,
     streakStartIndex,
@@ -429,7 +494,12 @@ export interface Progress {
 export function computeProgress(model: KetosisModel, allMeals: MealEntry[], achievements: Achievement[]): Progress {
   let xp = 0
   for (const d of model.dayStates) {
-    if (d.status === 'compliant') xp += Math.round(100 * (1 + Math.min(d.streak, 10) * 0.1))
+    if (d.status === 'compliant') {
+      // Quality-weighted: a clean 5g/75%-fat day earns far more than a
+      // borderline 24g/45%-fat one. Streak adds a loyalty multiplier.
+      const q = d.quality ?? 0.6
+      xp += Math.round((50 + 100 * q) * (1 + Math.min(d.streak, 10) * 0.08))
+    }
   }
   xp += allMeals.length * 10
   xp += achievements.filter(a => a.unlocked).reduce((s, a) => s + a.bounty, 0)
@@ -509,6 +579,7 @@ export function computeAchievements(model: KetosisModel, allMeals: MealEntry[]):
 
 export interface GameState {
   journey:      Journey
+  profile:      Profile | null
   model:        KetosisModel
   flu:          FluForecast
   bodyCue:      BodyCue
@@ -520,12 +591,13 @@ export interface GameState {
 export function buildGameState(): GameState | null {
   const journey = loadJourney()
   if (!journey) return null
+  const profile  = loadProfile()
   const allMeals = loadHistory()
   const groups   = groupByDay(allMeals)
-  const model    = computeKetosisModel(journey, groups)
+  const model    = computeKetosisModel(journey, groups, profile)
   const flu      = predictKetoFlu(model)
   const bodyCue  = dailyBodyCue(model)
   const achievements = computeAchievements(model, allMeals)
   const progress = computeProgress(model, allMeals, achievements)
-  return { journey, model, flu, bodyCue, progress, achievements }
+  return { journey, profile, model, flu, bodyCue, progress, achievements }
 }
