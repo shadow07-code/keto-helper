@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '../_rateLimit'
+import { parseModelJson } from '../_ai'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -27,35 +28,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unsupported image type.' }, { status: 400 })
     }
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 200,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type, data: image_data },
-            },
-            {
-              type: 'text',
-              text: 'Identify all foods visible in this image and estimate weights. If multiple distinct foods are present, list each with its estimated weight (e.g. "2 eggs, 300g pork, 100g cauliflower"). If a single food, just name it. Return ONLY valid JSON with no markdown: {"detected_food":"string — single food name OR comma-separated list like \'2 eggs, 300g pork, 100g cauliflower\'","estimated_weight_g":number — total weight of all items combined,"confidence":"low|medium|high"}',
-            },
-          ],
-        },
-      ],
-    })
-
-    let text = (msg.content[0] as { text: string }).text.trim()
-
-    // Strip accidental markdown fences
-    if (text.startsWith('```')) {
-      const lines = text.split('\n')
-      text = lines.slice(1, lines.at(-1)?.trim() === '```' ? -1 : undefined).join('\n').trim()
+    // Retry once on a malformed response before bothering the user.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result: any = null
+    let parseErr: unknown = null
+    for (let attempt = 0; attempt < 2 && result == null; attempt++) {
+      const msg = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type, data: image_data },
+              },
+              {
+                type: 'text',
+                text: 'Identify all foods visible in this image and estimate weights. If multiple distinct foods are present, list each with its estimated weight (e.g. "2 eggs, 300g pork, 100g cauliflower"). If a single food, just name it. Return ONLY valid JSON with no markdown: {"detected_food":"string — single food name OR comma-separated list like \'2 eggs, 300g pork, 100g cauliflower\'","estimated_weight_g":number — total weight of all items combined,"confidence":"low|medium|high"}',
+              },
+            ],
+          },
+        ],
+      })
+      try { result = parseModelJson(msg) } catch (e) { parseErr = e }
     }
+    if (result == null) throw parseErr instanceof SyntaxError ? parseErr : new SyntaxError('Malformed AI response')
 
-    const result = JSON.parse(text)
     return NextResponse.json(result)
 
   } catch (err: unknown) {

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '../_rateLimit'
+import { parseModelJson } from '../_ai'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -104,20 +105,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
     }
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 800,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: buildPrompt(body) }],
-    })
-
-    let text = (msg.content[0] as { text: string }).text.trim()
-    if (text.startsWith('```')) {
-      const lines = text.split('\n')
-      text = lines.slice(1, lines.at(-1)?.trim() === '```' ? -1 : undefined).join('\n').trim()
+    // Retry once on a malformed response before bothering the user.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let raw: any = null
+    let parseErr: unknown = null
+    for (let attempt = 0; attempt < 2 && raw == null; attempt++) {
+      const msg = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        system: SYSTEM,
+        messages: [{ role: 'user', content: buildPrompt(body) }],
+      })
+      try { raw = parseModelJson(msg) } catch (e) { parseErr = e }
     }
-
-    const raw = JSON.parse(text)
+    if (raw == null) throw parseErr instanceof SyntaxError ? parseErr : new SyntaxError('Malformed AI response')
 
     // Normalise + bound everything.
     const confidence = ['low', 'moderate', 'high'].includes(raw.confidence) ? raw.confidence : 'moderate'

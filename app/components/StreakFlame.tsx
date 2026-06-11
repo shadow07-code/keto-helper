@@ -19,14 +19,16 @@ export default function StreakFlame({ streak, maxStreak, size = 'lg' }: Props) {
       padding: isLg ? '10px 16px' : '5px 10px',
       border: '1px solid #2C4036',
     }}>
-      {/* Flame icon */}
-      <span style={{
-        fontSize: isLg ? '1.6rem' : '1rem',
-        filter: streak > 0
-          ? 'drop-shadow(0 0 6px rgba(230,194,74,0.5))'
-          : 'grayscale(1)',
-        transition: 'filter 0.3s',
-      }}>
+      {/* Flame icon — breathes while a streak is alive */}
+      <span
+        className={streak > 0 ? 'flame-live' : undefined}
+        style={{
+          fontSize: isLg ? '1.6rem' : '1rem',
+          filter: streak > 0
+            ? 'drop-shadow(0 0 6px rgba(230,194,74,0.5))'
+            : 'grayscale(1)',
+          transition: 'filter 0.3s',
+        }}>
         🔥
       </span>
 

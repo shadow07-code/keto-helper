@@ -529,26 +529,29 @@ export function computeProgress(model: KetosisModel, allMeals: MealEntry[], achi
 export interface Achievement {
   id: string; icon: string; name: string; desc: string
   bounty: number; unlocked: boolean
+  progress: number          // 0–1 toward unlocking (1 when unlocked)
+  progressLabel: string     // e.g. "5/7"
 }
 
 export function computeAchievements(model: KetosisModel, allMeals: MealEntry[]): Achievement[] {
   const ds = model.dayStates
 
-  // 5 consecutive days under 15g net carbs
-  let sharp = false, run = 0
+  // 5 consecutive days under 15g net carbs (track the best run for progress)
+  let sharp = false, run = 0, bestRun = 0
   for (const d of ds) {
-    if (d.status === 'compliant' && d.netCarbs < 15) { run++; if (run >= 5) { sharp = true; break } }
+    if (d.status === 'compliant' && d.netCarbs < 15) { run++; bestRun = Math.max(bestRun, run); if (run >= 5) sharp = true }
     else run = 0
   }
 
   // Comeback: a 3-day streak rebuilt AFTER the first break
-  let comeback = false, seenBreak = false
+  let comeback = false, seenBreak = false, bestPostBreak = 0
   for (const d of ds) {
     if (d.status === 'broken') seenBreak = true
-    if (seenBreak && d.streak >= 3) { comeback = true; break }
+    if (seenBreak) bestPostBreak = Math.max(bestPostBreak, d.streak)
+    if (seenBreak && d.streak >= 3) comeback = true
   }
 
-  const def: Omit<Achievement, 'unlocked'>[] = [
+  const def: Omit<Achievement, 'unlocked' | 'progress' | 'progressLabel'>[] = [
     { id: 'first_fuel',    icon: '🥑', name: 'First Fuel',    desc: 'Log your first meal',            bounty: 50  },
     { id: 'first_ketones', icon: '🔥', name: 'First Ketones', desc: 'Reach a 3-day streak',           bounty: 100 },
     { id: 'flu_fighter',   icon: '🛡️', name: 'Flu Fighter',   desc: 'Clear day 6 of a transition',    bounty: 200 },
@@ -572,7 +575,29 @@ export function computeAchievements(model: KetosisModel, allMeals: MealEntry[]):
     documentarian: allMeals.length >= 25,
   }
 
-  return def.map(a => ({ ...a, unlocked: unlocked[a.id] ?? false }))
+  // [current, target] toward each badge — fuels the "almost there" pull.
+  const counts: Record<string, [number, number]> = {
+    first_fuel:    [Math.min(allMeals.length, 1), 1],
+    first_ketones: [Math.min(model.maxStreak, 3), 3],
+    flu_fighter:   [model.genuineStart ? Math.min(model.maxStreak, 6) : 0, 6],
+    week_warrior:  [Math.min(model.maxStreak, 7), 7],
+    fortnight:     [Math.min(model.maxStreak, 14), 14],
+    fat_adapted:   [Math.min(model.maxStreak, 30), 30],
+    sharpshooter:  [Math.min(bestRun, 5), 5],
+    comeback_kid:  [Math.min(bestPostBreak, 3), 3],
+    documentarian: [Math.min(allMeals.length, 25), 25],
+  }
+
+  return def.map(a => {
+    const isUnlocked = unlocked[a.id] ?? false
+    const [cur, target] = counts[a.id] ?? [0, 1]
+    return {
+      ...a,
+      unlocked: isUnlocked,
+      progress: isUnlocked ? 1 : clamp(cur / target, 0, 1),
+      progressLabel: `${cur}/${target}`,
+    }
+  })
 }
 
 // ─── Convenience aggregator ────────────────────────────────────────────

@@ -6,7 +6,7 @@ import {
   updateEntry, deleteEntry,
   type MealEntry, type MacroValues,
 } from '../lib/history'
-import { buildGameState, dailyMission, KETO_CARB_LIMIT } from '../lib/ketosis'
+import { buildGameState, dailyMission, dayQuality, KETO_CARB_LIMIT, type MacroQuality } from '../lib/ketosis'
 import MissionCard from '../components/MissionCard'
 import FluForecast from '../components/FluForecast'
 import HydrationCard from '../components/HydrationCard'
@@ -20,6 +20,85 @@ function scoreColor(s: number) {
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+/* ─── Day Quality ring — instant feedback on the whole day ── */
+const QUALITY_CIRC = 2 * Math.PI * 34
+
+function qualityColor(q: number) {
+  return q >= 0.75 ? '#4ADE80' : q >= 0.5 ? '#E6C24A' : '#E08A4C'
+}
+function qualityWord(q: number) {
+  return q >= 0.85 ? 'Excellent' : q >= 0.7 ? 'Strong' : q >= 0.5 ? 'Decent' : q >= 0.3 ? 'Rough' : 'Off-track'
+}
+
+function DayQualityCard({ q, totals }: { q: MacroQuality; totals: MacroValues }) {
+  const pct   = Math.round(q.quality * 100)
+  const color = qualityColor(q.quality)
+  const rows = [
+    { label: 'Carb control',  score: q.carbScore,    value: `${fmt(totals.net_carbs_g)}g net` },
+    { label: 'Fat ratio',     score: q.fatScore,     value: `${Math.round(q.fatPct)}% kcal` },
+    { label: 'Protein',       score: q.proteinScore, value: `${Math.round(q.proteinPct)}% kcal` },
+  ]
+
+  return (
+    <div style={{
+      background: '#1E2E26',
+      borderRadius: 14,
+      border: '1px solid #2C4036',
+      padding: 16,
+    }}>
+      <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#D44866', marginBottom: 12, fontFamily: 'var(--font-lato), sans-serif' }}>
+        Day Quality
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        {/* Ring */}
+        <div style={{ position: 'relative', width: 84, height: 84, flexShrink: 0 }}>
+          <svg style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }} viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#2C4036" strokeWidth={7} />
+            <circle cx="40" cy="40" r="34" fill="none" strokeWidth={7} strokeLinecap="round"
+              style={{
+                strokeDasharray: QUALITY_CIRC,
+                strokeDashoffset: QUALITY_CIRC * (1 - q.quality),
+                stroke: color,
+                transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1), stroke 0.4s',
+                filter: `drop-shadow(0 0 5px ${color}66)`,
+              }} />
+          </svg>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="tnum" style={{ fontFamily: 'var(--font-playfair), serif', fontSize: '1.45rem', fontWeight: 700, lineHeight: 1, color: '#F3EEE2' }}>{pct}</span>
+            <span style={{ fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color, marginTop: 2, fontFamily: 'var(--font-lato), sans-serif' }}>
+              {qualityWord(q.quality)}
+            </span>
+          </div>
+        </div>
+
+        {/* Sub-score bars */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
+          {rows.map(r => (
+            <div key={r.label}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#8FA396', fontFamily: 'var(--font-lato), sans-serif' }}>{r.label}</span>
+                <span className="tnum" style={{ fontSize: '0.66rem', fontWeight: 700, color: '#F3EEE2', fontFamily: 'var(--font-lato), sans-serif' }}>{r.value}</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: '#2C4036', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${Math.round(r.score * 100)}%`, borderRadius: 2,
+                  background: qualityColor(r.score),
+                  transition: 'width 0.7s ease',
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p style={{ fontSize: '0.66rem', color: '#5E7066', margin: '12px 0 0', lineHeight: 1.45, fontFamily: 'var(--font-lato), sans-serif' }}>
+        Cleaner days deepen ketosis faster and earn more XP — quality weights your whole day, not just single meals.
+      </p>
+    </div>
+  )
 }
 
 function MacroBar({ totals }: { totals: MacroValues }) {
@@ -122,7 +201,7 @@ function MealCard({
           placeholder="e.g. avocado 400g · grilled chicken 200g"
           style={{
             width: '100%', padding: '8px 12px', border: '1px solid #2C4036', borderRadius: 6,
-            fontSize: '0.85rem', color: '#F3EEE2', background: '#14201A',
+            fontSize: '1rem', color: '#F3EEE2', background: '#14201A',
             fontFamily: 'var(--font-lato), sans-serif', outline: 'none',
           }}
         />
@@ -265,6 +344,7 @@ export default function TodayPage() {
   const gs = buildGameState()
   const mission = gs ? dailyMission(gs.model, totals, meals.length) : null
   const compliant = totals.net_carbs_g <= KETO_CARB_LIMIT && meals.length > 0
+  const quality = meals.length > 0 ? dayQuality(totals) : null
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: 96 }}>
@@ -316,9 +396,16 @@ export default function TodayPage() {
       </div>
 
       <div style={{ maxWidth: 540, margin: '0 auto', padding: '16px 16px 0' }}>
+        {/* Day quality — the day's report card, live */}
+        {quality && (
+          <div className="rise rise-1" style={{ marginBottom: 12 }}>
+            <DayQualityCard q={quality} totals={totals} />
+          </div>
+        )}
+
         {/* Game strip: mission + flu + hydration */}
         {gs && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          <div className="rise rise-2" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
             {mission && <MissionCard mission={mission} />}
             <FluForecast flu={gs.flu} />
             <HydrationCard bodyCue={gs.bodyCue} dateKey={new Date().toDateString()} />

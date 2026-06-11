@@ -46,7 +46,7 @@ export default function ProfileSetup({ initial, onComplete, onSkip, heading, sub
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '11px 14px', background: '#14201A',
     border: '1px solid #2C4036', borderRadius: 10, color: '#F3EEE2',
-    fontSize: '0.95rem', fontFamily: 'var(--font-lato), sans-serif', outline: 'none',
+    fontSize: '1rem', fontFamily: 'var(--font-lato), sans-serif', outline: 'none',
   }
   const labelStyle: React.CSSProperties = {
     display: 'block', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em',

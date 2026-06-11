@@ -13,6 +13,7 @@ import FluForecast from './components/FluForecast'
 import HydrationCard from './components/HydrationCard'
 import BadgeShelf from './components/BadgeShelf'
 import StreakFlame from './components/StreakFlame'
+import WeekStrip from './components/WeekStrip'
 import OnboardingHero from './components/OnboardingHero'
 import CoachCard from './components/CoachCard'
 import ProfileSetup from './components/ProfileSetup'
@@ -96,9 +97,9 @@ export default function JourneyHub() {
   return (
     <div style={{ minHeight: '100vh', padding: '20px 20px 32px' }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+      <div className="rise rise-1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div style={{
-          fontFamily: 'var(--font-playfair), serif', fontSize: '1.3rem', fontWeight: 700, color: '#F3EEE2',
+          fontFamily: 'var(--font-playfair), serif', fontSize: '1.45rem', fontWeight: 700, color: '#F3EEE2',
         }}>
           {profile?.name
             ? <>{greetingFor(profile.name).split(', ')[0]}, <span style={{ color: '#C9A84C' }}>{profile.name}</span></>
@@ -107,23 +108,40 @@ export default function JourneyHub() {
         <AddToHomeScreen />
       </div>
 
-      <p style={{
-        fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.7rem', color: '#8FA396',
-        letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16,
-      }}>
-        Day {gs.model.daysSinceStart} · {gs.model.personalized ? 'Personalised' : 'Estimated'} ketosis journey
-      </p>
+      <div className="rise rise-1" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+        <span className="tnum" style={{
+          fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.62rem', fontWeight: 700,
+          letterSpacing: '0.1em', textTransform: 'uppercase', color: '#E6C24A',
+          background: 'rgba(230,194,74,0.1)', border: '1px solid rgba(230,194,74,0.25)',
+          borderRadius: 999, padding: '3px 10px',
+        }}>
+          Day {gs.model.daysSinceStart}
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.62rem', fontWeight: 700,
+          letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8FA396',
+        }}>
+          {gs.model.personalized ? 'Personalised' : 'Estimated'} ketosis journey
+        </span>
+      </div>
 
       {/* Keto Meter (hero) */}
-      <KetoMeter level={gs.model.level} phase={gs.model.phase} />
+      <div className="rise rise-2">
+        <KetoMeter level={gs.model.level} phase={gs.model.phase} />
+      </div>
 
       {/* Streak row */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12, marginBottom: 20 }}>
+      <div className="rise rise-3" style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 14, marginBottom: 20 }}>
         <StreakFlame streak={gs.model.streak} maxStreak={gs.model.maxStreak} />
       </div>
 
       {/* Component stack */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 500, margin: '0 auto' }}>
+
+        {/* The chain — last 7 days at a glance */}
+        <div className="rise rise-3">
+          <WeekStrip dayStates={gs.model.dayStates} />
+        </div>
 
         {/* Profile nudge for users without body data */}
         {showProfileNudge && (
@@ -152,25 +170,42 @@ export default function JourneyHub() {
         )}
 
         {/* AI Coach — the intelligent centrepiece */}
-        <CoachCard />
+        <div className="rise rise-4">
+          <CoachCard />
+        </div>
 
         {/* XP Bar */}
-        <XpBar progress={gs.progress} />
+        <div className="rise rise-5">
+          <XpBar progress={gs.progress} />
+        </div>
 
         {/* Today's Mission */}
-        <MissionCard mission={mission} />
+        <div className="rise rise-5">
+          <MissionCard mission={mission} />
+        </div>
 
         {/* Flu Forecast */}
-        <FluForecast flu={gs.flu} />
+        <div className="rise rise-6">
+          <FluForecast flu={gs.flu} />
+        </div>
 
         {/* Hydration / Body Cue */}
-        <HydrationCard bodyCue={gs.bodyCue} dateKey={todayKey} />
+        <div className="rise rise-6">
+          <HydrationCard bodyCue={gs.bodyCue} dateKey={todayKey} />
+        </div>
 
         {/* Achievements */}
-        <div>
-          <h3 style={{ fontFamily: 'var(--font-playfair), serif', fontSize: '1rem', fontWeight: 700, color: '#F3EEE2', marginBottom: 10 }}>
-            Achievements
-          </h3>
+        <div className="rise rise-7">
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <h3 style={{ fontFamily: 'var(--font-playfair), serif', fontSize: '1rem', fontWeight: 700, color: '#F3EEE2', margin: 0 }}>
+              Achievements
+            </h3>
+            <span className="tnum" style={{
+              fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.7rem', fontWeight: 700, color: '#8FA396',
+            }}>
+              {gs.achievements.filter(a => a.unlocked).length}/{gs.achievements.length} unlocked
+            </span>
+          </div>
           <BadgeShelf achievements={gs.achievements} seenIds={gs.journey.seenAchievements} />
         </div>
       </div>

@@ -17,16 +17,18 @@ export default function BadgeShelf({ achievements, seenIds, compact = false }: P
     }}>
       {achievements.map(a => {
         const isNew = a.unlocked && !seenIds.includes(a.id)
+        const nearly = !a.unlocked && a.progress >= 0.5
         return (
           <div
             key={a.id}
             style={{
-              background: a.unlocked ? '#1E2E26' : '#14201A',
+              background: a.unlocked ? 'linear-gradient(160deg, #233A2E, #1E2E26)' : '#17241D',
               borderRadius: 12,
-              padding: compact ? '10px 6px' : '14px 10px',
-              border: `1px solid ${a.unlocked ? '#C9A84C' : '#2C4036'}`,
+              padding: compact ? '10px 6px' : '14px 10px 12px',
+              border: `1px solid ${a.unlocked ? '#C9A84C' : nearly ? '#3A5246' : '#2C4036'}`,
+              boxShadow: a.unlocked ? '0 0 14px rgba(201,168,76,0.12)' : 'none',
               textAlign: 'center',
-              opacity: a.unlocked ? 1 : 0.45,
+              opacity: a.unlocked ? 1 : 0.75,
               position: 'relative',
               transition: 'opacity 0.4s, border-color 0.4s',
             }}
@@ -54,7 +56,7 @@ export default function BadgeShelf({ achievements, seenIds, compact = false }: P
             <div style={{
               fontSize: compact ? '1.4rem' : '1.8rem',
               marginBottom: 4,
-              filter: a.unlocked ? 'none' : 'grayscale(1)',
+              filter: a.unlocked ? 'drop-shadow(0 0 6px rgba(201,168,76,0.35))' : 'grayscale(1) opacity(0.55)',
             }}>
               {a.icon}
             </div>
@@ -82,16 +84,39 @@ export default function BadgeShelf({ achievements, seenIds, compact = false }: P
               </div>
             )}
 
-            {/* Bounty */}
-            {a.unlocked && (
+            {/* Unlocked → bounty · Locked → progress toward it */}
+            {a.unlocked ? (
               <div style={{
-                marginTop: 4,
+                marginTop: 5,
                 fontFamily: 'var(--font-lato), sans-serif',
                 fontSize: '0.55rem',
                 fontWeight: 700,
                 color: '#E6C24A',
               }}>
                 +{a.bounty} XP
+              </div>
+            ) : (
+              <div style={{ marginTop: 7 }}>
+                <div style={{ height: 3, borderRadius: 2, background: '#2C4036', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.round(a.progress * 100)}%`,
+                    borderRadius: 2,
+                    background: nearly
+                      ? 'linear-gradient(90deg, #C9A84C, #E6C24A)'
+                      : '#3A5246',
+                    transition: 'width 0.6s ease',
+                  }} />
+                </div>
+                <div className="tnum" style={{
+                  marginTop: 3,
+                  fontFamily: 'var(--font-lato), sans-serif',
+                  fontSize: '0.52rem',
+                  fontWeight: 700,
+                  color: nearly ? '#E6C24A' : '#5E7066',
+                }}>
+                  {a.progressLabel}
+                </div>
               </div>
             )}
           </div>

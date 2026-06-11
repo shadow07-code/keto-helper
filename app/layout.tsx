@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Lato } from 'next/font/google'
 import NavBar from './components/NavBar'
 import './globals.css'
@@ -18,6 +18,13 @@ const lato = Lato({
   display: 'swap',
 })
 
+export const viewport: Viewport = {
+  themeColor: '#14201A',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
   title: 'KetoHelper — Your Ketosis Journey',
   description: 'Gamified keto tracking — AI-powered meal analysis, ketosis meter, daily missions, and science-backed body cues.',
@@ -36,7 +43,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${lato.variable}`}>
-      <body className="pb-[64px]">
+      {/* Inline padding (not a Tailwind class) so the nav clearance + iOS safe-area inset can never be purged away */}
+      <body style={{ paddingBottom: 'calc(64px + env(safe-area-inset-bottom))' }}>
         {children}
         <NavBar />
       </body>

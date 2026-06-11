@@ -1,6 +1,6 @@
 # KetoHelper — Handoff
 
-_Last updated: 2026-06-07 · Latest commit: `c5bce72` · Live: https://ketohelper.vercel.app_
+_Last updated: 2026-06-11 · Live: https://ketohelper.vercel.app_
 
 A keto-diet companion PWA, redesigned into an **intelligent, game-first "Ketosis Journey"**:
 a personalized metabolic meter + an AI coach, with AI meal analysis as the core daily action.
@@ -21,10 +21,33 @@ client-side `localStorage` (no DB).
 - **Comeback-timing fix + wine accent** (commit `f0bd0ec`): same-day carb-over no longer says
   "comeback today" (that's impossible) — it shows **Damage control** today / **Comeback** tomorrow.
   Added a wine-red accent (`#B8344C`/`#D44866`/`#8B2238`) to **Today** and **Fuel** pages for variety.
-- **Intelligence layer** (commit `c5bce72`, current): user profile → personalized metabolic model →
+- **Intelligence layer** (commit `c5bce72`): user profile → personalized metabolic model →
   AI coach. This is the headline feature. Details below.
+- **Phase 6 — premium polish + engagement loops** (current): big visual/psychological pass.
+  - **KetoMeter v2** — fixed a long-standing geometry bug (the old `polarToCartesian` didn't flip
+    Y, so the gauge rendered as a bottom-half *bowl*); now a proper top-half speedometer with
+    phase-reactive ambient glow, recessed track, glowing active zone, minor/major ticks, inner
+    gradient progress arc, springy ease-out-back needle, and a `setTimeout` settle fallback
+    (rAF is paused in throttled/background tabs — without it the meter stuck at 0%).
+  - **Engagement mechanics**: WeekStrip 7-day chain card on the hub (loss-aversion), progress
+    bars + `cur/target` labels on locked badges (goal gradient; engine now exposes
+    `Achievement.progress`/`progressLabel`), achievements counter, breathing streak flame.
+  - **Celebration loop** on Fuel: logging computes REAL before/after engine deltas (XP, meter %,
+    new badges, level-ups) and fires a celebration overlay — confetti on badge/level-up, honest
+    ▼ meter drops for carb-heavy meals (always rewards the logging habit, shows the consequence).
+    Quick re-log chips (6 most-recent unique meals), "See it on your meter →" pull-back CTA.
+  - **Day Quality ring** on Today (live day score from `dayQuality` + carb/fat/protein sub-bars);
+    4-stat hero row on Progress (days/best streak/level/XP).
+  - **Foundation**: ambient radial glow (`body::before`), themed scrollbars/selection, tap-highlight
+    removal, staggered `.rise` entrances, shimmer skeletons (coach), `prefers-reduced-motion`
+    support, safe-area insets (body + NavBar), NavBar glass blur, `themeColor`/dark manifest,
+    16px inputs (kills iOS focus-zoom), `tabular-nums` stats.
+  - **AI route hardening** (`app/api/_ai.ts`): fence/preamble/prose-tolerant JSON extraction +
+    one silent retry across analyze/coach/vision (a real "Failed to parse AI response" was
+    reproduced in QA and is now self-healing); analyze max_tokens 1200→1600, vision 200→300.
 - **Deployed**: Vercel project `keto_helper`, aliased to `ketohelper.vercel.app`, `ANTHROPIC_API_KEY`
-  set on Preview + Production. Last deploy `READY`. GitHub `master` in sync.
+  set on Preview + Production. GitHub `master`. Phase 6 is committed but **not yet deployed** —
+  run `vercel deploy --prod --yes` when ready.
 
 ---
 

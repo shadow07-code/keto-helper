@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '../_rateLimit'
+import { parseModelJson } from '../_ai'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -87,22 +88,20 @@ export async function POST(req: NextRequest) {
     if (food_input.length > 500)
       return NextResponse.json({ error: 'Input too long (max 500 chars).' }, { status: 400 })
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1200,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: buildPrompt(food_input) }],
-    })
-
-    let text = (msg.content[0] as { text: string }).text.trim()
-
-    // Strip accidental markdown fences
-    if (text.startsWith('```')) {
-      const lines = text.split('\n')
-      text = lines.slice(1, lines.at(-1)?.trim() === '```' ? -1 : undefined).join('\n').trim()
+    // Retry once on a malformed response before bothering the user.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result: any = null
+    let parseErr: unknown = null
+    for (let attempt = 0; attempt < 2 && result == null; attempt++) {
+      const msg = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1600,
+        system: SYSTEM,
+        messages: [{ role: 'user', content: buildPrompt(food_input) }],
+      })
+      try { result = parseModelJson(msg) } catch (e) { parseErr = e }
     }
-
-    const result = JSON.parse(text)
+    if (result == null) throw parseErr instanceof SyntaxError ? parseErr : new SyntaxError('Malformed AI response')
 
     // Validate required numeric fields are finite and non-negative
     const macroFields = ['calories', 'carbs_g', 'protein_g', 'fat_g', 'fiber_g', 'net_carbs_g']

@@ -5,12 +5,55 @@
 /* ─── Base ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+:root { color-scheme: dark; }
+
+html { -webkit-text-size-adjust: 100%; }
+
 body {
   font-family: var(--font-lato), sans-serif;
   background: #14201A;
   color: #F3EEE2;
   min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
+
+/* Ambient stage light — depth behind the dark theme */
+body::before {
+  content: '';
+  position: fixed;
+  top: -240px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 680px;
+  height: 540px;
+  background: radial-gradient(closest-side, rgba(201,168,76,0.09), rgba(201,168,76,0.03) 55%, transparent 78%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+::selection {
+  background: rgba(201,168,76,0.35);
+  color: #F3EEE2;
+}
+
+/* Themed scrollbars */
+* { scrollbar-width: thin; scrollbar-color: #2C4036 transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #2C4036; border-radius: 8px; border: 2px solid #14201A; }
+::-webkit-scrollbar-track { background: transparent; }
+
+button { touch-action: manipulation; }
+
+/* Stat numbers align like a dashboard */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Tactile press feedback */
+.pressable { transition: transform 0.12s ease; }
+.pressable:active { transform: scale(0.96); }
 
 /* ─── Fade-in animation for results ────────────────── */
 @keyframes fadeUp {
@@ -20,6 +63,16 @@ body {
 .animate-fade-up {
   animation: fadeUp 0.42s ease both;
 }
+
+/* Staggered section entrances */
+.rise { opacity: 0; animation: fadeUp 0.55s cubic-bezier(0.22, 0.8, 0.36, 1) forwards; }
+.rise-1 { animation-delay: 0.04s; }
+.rise-2 { animation-delay: 0.10s; }
+.rise-3 { animation-delay: 0.16s; }
+.rise-4 { animation-delay: 0.22s; }
+.rise-5 { animation-delay: 0.28s; }
+.rise-6 { animation-delay: 0.34s; }
+.rise-7 { animation-delay: 0.40s; }
 
 /* ─── Spinner ───────────────────────────────────────── */
 @keyframes spin {
@@ -37,4 +90,53 @@ body {
 }
 .keto-loading-icon {
   animation: keto-pulse 1.4s ease-in-out infinite;
+}
+
+/* ─── Shimmer skeleton (loading) ────────────────────── */
+@keyframes shimmer {
+  from { background-position: -420px 0; }
+  to   { background-position: 420px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #233630 0%, #2C4036 30%, #233630 60%);
+  background-size: 840px 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+
+/* ─── Pop-in for toasts & celebrations ──────────────── */
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.85) translateY(12px); }
+  60%  { opacity: 1; transform: scale(1.03) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in { animation: popIn 0.45s cubic-bezier(0.22, 0.8, 0.36, 1) both; }
+
+/* ─── Confetti ──────────────────────────────────────── */
+@keyframes confettiFall {
+  0%   { opacity: 1; transform: translateY(-6vh) rotate(0deg); }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(106vh) rotate(560deg); }
+}
+
+/* ─── Live streak flame ─────────────────────────────── */
+@keyframes flameBreath {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 5px rgba(230,194,74,0.45)); }
+  50%      { transform: scale(1.12); filter: drop-shadow(0 0 12px rgba(230,194,74,0.75)); }
+}
+.flame-live { display: inline-block; animation: flameBreath 2.2s ease-in-out infinite; }
+
+/* ─── Meter hub pulse (deep ketosis) ────────────────── */
+@keyframes hubPulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.9; }
+}
+.hub-pulse { animation: hubPulse 2.4s ease-in-out infinite; }
+
+/* ─── Accessibility: honour reduced motion ──────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

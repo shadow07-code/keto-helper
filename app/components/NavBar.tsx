@@ -24,17 +24,20 @@ export default function NavBar() {
 
   return (
     <nav style={{
-      position:   'fixed',
-      bottom:     0,
-      left:       0,
-      right:      0,
-      height:     '64px',
-      background: '#1E2E26',
-      borderTop:  '1px solid #2C4036',
-      display:    'flex',
-      alignItems: 'stretch',
-      zIndex:     9999,
-      boxShadow:  '0 -4px 24px rgba(0,0,0,0.35)',
+      position:      'fixed',
+      bottom:        0,
+      left:          0,
+      right:         0,
+      height:        'calc(64px + env(safe-area-inset-bottom))',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+      background:    'rgba(30,46,38,0.94)',
+      backdropFilter: 'blur(14px)',
+      WebkitBackdropFilter: 'blur(14px)',
+      borderTop:     '1px solid #2C4036',
+      display:       'flex',
+      alignItems:    'stretch',
+      zIndex:        9999,
+      boxShadow:     '0 -4px 24px rgba(0,0,0,0.35)',
     }}>
       {/* Left tabs */}
       {LEFT_TABS.map(({ href, label, icon }) => {

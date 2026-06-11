@@ -154,15 +154,21 @@ export default function CoachCard() {
 
 function CoachSkeleton() {
   const bar = (w: string, h = 12): React.CSSProperties => ({
-    width: w, height: h, borderRadius: 6, background: '#2C4036', marginBottom: 9,
+    width: w, height: h, borderRadius: 6, marginBottom: 9,
   })
   return (
-    <div className="keto-loading-icon" style={{ opacity: 0.6 }}>
-      <div style={bar('60%', 18)} />
-      <div style={bar('100%', 34)} />
-      <div style={bar('95%')} />
-      <div style={bar('88%')} />
-      <div style={bar('70%')} />
+    <div>
+      <div className="shimmer" style={bar('60%', 18)} />
+      <div className="shimmer" style={bar('100%', 34)} />
+      <div className="shimmer" style={bar('95%')} />
+      <div className="shimmer" style={bar('88%')} />
+      <div className="shimmer" style={bar('70%')} />
+      <p style={{
+        fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.62rem', color: '#8FA396',
+        margin: '4px 0 0', opacity: 0.7,
+      }}>
+        Reading your physiology &amp; recent logs…
+      </p>
     </div>
   )
 }

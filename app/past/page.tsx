@@ -169,6 +169,37 @@ export default function ProgressPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+            {/* ── Journey at a glance ── */}
+            {gs && (
+              <div className="rise rise-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {[
+                  { v: String(gs.model.daysSinceStart), k: 'Days in',      accent: '#F3EEE2' },
+                  { v: `${gs.model.maxStreak}`,         k: 'Best streak',  accent: '#E6C24A' },
+                  { v: `${gs.model.level}%`,            k: 'Ketosis now',  accent: gs.model.phase.color },
+                  { v: gs.progress.xp.toLocaleString(), k: 'Total XP',     accent: '#C9A84C' },
+                ].map(({ v, k, accent }) => (
+                  <div key={k} style={{
+                    background: '#1E2E26',
+                    borderRadius: 12,
+                    border: '1px solid #2C4036',
+                    padding: '12px 6px',
+                    textAlign: 'center',
+                    minWidth: 0,
+                  }}>
+                    <span className="tnum" style={{
+                      display: 'block', fontFamily: 'var(--font-playfair), serif', fontWeight: 700,
+                      fontSize: 'clamp(0.95rem, 4.2vw, 1.25rem)', color: accent, lineHeight: 1,
+                    }}>{v}</span>
+                    <span style={{
+                      display: 'block', fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.12em',
+                      textTransform: 'uppercase', color: '#8FA396', marginTop: 5,
+                      fontFamily: 'var(--font-lato), sans-serif', whiteSpace: 'nowrap',
+                    }}>{k}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* ── Ketosis Level Journey (NEW hero chart) ── */}
             {levelData.length >= 2 && (
               <ChartCard title="Ketosis Level — Your Journey">

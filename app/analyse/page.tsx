@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import { PieChart, Pie, Cell, Tooltip, Label, ResponsiveContainer } from 'recharts'
-import { type MacroValues, saveEntry } from '../lib/history'
+import { type MacroValues, saveEntry, loadHistory } from '../lib/history'
 import { buildGameState } from '../lib/ketosis'
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -161,6 +162,15 @@ function AltCard({ alt }: { alt: KetoAlt }) {
   )
 }
 
+/* ─── Celebration payload (computed from real engine deltas) ── */
+interface Celebration {
+  xp:         number
+  meterDelta: number
+  foodName:   string
+  newBadges:  { icon: string; name: string }[]
+  newTitle:   string | null
+}
+
 /* ─── Main Page ──────────────────────────────────────────── */
 export default function AnalysePage() {
   const [input, setInput]             = useState('')
@@ -171,15 +181,32 @@ export default function AnalysePage() {
   const [photoLoading, setPhotoLoading] = useState(false)
   const [detectedChip, setDetectedChip] = useState('')
   const [logState, setLogState]         = useState<'idle' | 'logged'>('idle')
-  const [xpFlash, setXpFlash]           = useState<number | null>(null)
+  const [celebration, setCelebration]   = useState<Celebration | null>(null)
+  const [recents, setRecents]           = useState<{ name: string; qty: string }[]>([])
 
   const inputRef    = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  /* ── Recent meals → one-tap re-log chips (most recent first) ── */
+  useEffect(() => {
+    const seen = new Set<string>()
+    const out: { name: string; qty: string }[] = []
+    const history = [...loadHistory()].sort((a, b) => b.timestamp - a.timestamp)
+    for (const m of history) {
+      const k = m.food_name.toLowerCase()
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push({ name: m.food_name, qty: m.quantity_display })
+      if (out.length >= 6) break
+    }
+    setRecents(out)
+  }, [])
+
   /* ── Analyse ── */
-  const analyse = useCallback(async () => {
-    const q = input.trim()
+  const analyse = useCallback(async (override?: string) => {
+    const q = (override ?? input).trim()
     if (!q) { setError('Enter a food item to analyse.'); inputRef.current?.focus(); return }
+    if (override) setInput(override)
     setLoading(true); setError(''); setData(null)
     try {
       const res  = await fetch('/api/analyze', {
@@ -194,7 +221,7 @@ export default function AnalysePage() {
       setTab('quantity')
       setDetectedChip('')
       setLogState('idle')
-      setXpFlash(null)
+      setCelebration(null)
 
     } catch {
       setError('Network error — check your connection and try again.')
@@ -291,9 +318,10 @@ export default function AnalysePage() {
     }
   }, [compressImage])
 
-  /* ── Log + XP flash ── */
+  /* ── Log → compute REAL engine deltas → celebrate ── */
   const handleLog = () => {
     if (logState === 'logged' || !data) return
+    const before = buildGameState()
     saveEntry({
       id:               Date.now().toString(),
       timestamp:        Date.now(),
@@ -302,12 +330,21 @@ export default function AnalysePage() {
       keto_score:       data.keto_score,
       per_quantity:     data.per_quantity,
     })
+    const after = buildGameState()
     setLogState('logged')
 
-    // Flash XP earned
-    const gs = buildGameState()
-    if (gs) setXpFlash(10) // base meal XP
-    setTimeout(() => setXpFlash(null), 2500)
+    const cel: Celebration = {
+      xp: 10, meterDelta: 0, foodName: data.corrected_name, newBadges: [], newTitle: null,
+    }
+    if (before && after) {
+      cel.xp         = Math.max(after.progress.xp - before.progress.xp, 10)
+      cel.meterDelta = after.model.level - before.model.level
+      cel.newBadges  = after.achievements
+        .filter(a => a.unlocked && !before.achievements.find(b => b.id === a.id)?.unlocked)
+        .map(a => ({ icon: a.icon, name: a.name }))
+      cel.newTitle   = after.progress.levelIndex > before.progress.levelIndex ? after.progress.title : null
+    }
+    setCelebration(cel)
   }
 
   const pct  = data ? (tab === 'quantity' ? data.macro_percentages_per_quantity : data.macro_percentages_per_100g) : null
@@ -376,7 +413,7 @@ export default function AnalysePage() {
               border: '1px solid #2C4036',
               borderRadius: 8,
               color: '#F3EEE2',
-              fontSize: '0.92rem',
+              fontSize: '1rem', /* ≥16px stops iOS zooming the page on focus */
               fontFamily: 'var(--font-lato), sans-serif',
               outline: 'none',
               transition: 'border-color 0.2s',
@@ -427,9 +464,49 @@ export default function AnalysePage() {
           <p style={{ flex: '1 1 0%', fontSize: '0.72rem', color: '#8FA396', textAlign: 'right', whiteSpace: 'nowrap', margin: 0 }}>Snap your meal</p>
         </div>
 
+        {/* Quick re-log chips */}
+        {recents.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <p style={{
+              fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase',
+              color: '#8FA396', margin: '0 0 7px 0', fontFamily: 'var(--font-lato), sans-serif',
+            }}>
+              Quick log — recent meals
+            </p>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
+              {recents.map((r, i) => (
+                <button
+                  key={i}
+                  className="pressable"
+                  onClick={() => analyse(`${r.name} ${r.qty}`)}
+                  disabled={loading || photoLoading}
+                  style={{
+                    flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '7px 13px',
+                    background: '#1E2E26',
+                    border: '1px solid #2C4036',
+                    borderRadius: 999,
+                    color: '#F3EEE2',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    fontFamily: 'var(--font-lato), sans-serif',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    opacity: loading || photoLoading ? 0.5 : 1,
+                  }}
+                >
+                  <span style={{ color: '#C9A84C', fontSize: '0.68rem' }}>↻</span>
+                  {r.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Analyse button */}
         <button
-          onClick={analyse}
+          onClick={() => analyse()}
           disabled={loading}
           style={{
             width: '100%',
@@ -523,20 +600,24 @@ export default function AnalysePage() {
               {logState === 'logged' ? '✓ Logged' : '＋ Log & Earn XP'}
             </button>
 
-            {/* XP flash */}
-            {xpFlash != null && (
-              <div style={{
-                textAlign: 'center',
-                marginTop: 8,
-                fontFamily: 'var(--font-lato), sans-serif',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#E6C24A',
-              }}
+            {/* Pull back into the loop after logging */}
+            {logState === 'logged' && (
+              <Link
+                href="/"
                 className="animate-fade-up"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  marginTop: 10, padding: '12px 24px', borderRadius: 10,
+                  background: 'rgba(230,194,74,0.08)',
+                  border: '1px solid rgba(230,194,74,0.3)',
+                  color: '#E6C24A', textDecoration: 'none',
+                  fontFamily: 'var(--font-lato), sans-serif',
+                  fontSize: '0.78rem', fontWeight: 700,
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                }}
               >
-                +{xpFlash} XP earned!
-              </div>
+                See it on your meter →
+              </Link>
             )}
           </div>
 
@@ -657,6 +738,172 @@ export default function AnalysePage() {
           )}
         </section>
       )}
+
+      {/* Celebration overlay */}
+      {celebration && (
+        <CelebrationOverlay cel={celebration} onClose={() => setCelebration(null)} />
+      )}
+    </div>
+  )
+}
+
+/* ─── Celebration overlay ────────────────────────────────── */
+const CONFETTI_COLORS = ['#E6C24A', '#C9A84C', '#4ADE80', '#F3EEE2', '#D44866']
+
+function CelebrationOverlay({ cel, onClose }: { cel: Celebration; onClose: () => void }) {
+  const special = cel.newBadges.length > 0 || cel.newTitle != null
+
+  // Confetti pieces (only for badge unlocks / level-ups)
+  const pieces = useMemo(() => {
+    if (!special) return []
+    return Array.from({ length: 28 }, (_, i) => ({
+      left:  Math.random() * 100,
+      delay: Math.random() * 0.5,
+      dur:   1.4 + Math.random() * 1.1,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      w:     5 + Math.random() * 5,
+      rot:   Math.random() * 360,
+    }))
+  }, [special])
+
+  // Plain meal logs auto-dismiss; big moments wait for a tap.
+  useEffect(() => {
+    if (special) return
+    const t = setTimeout(onClose, 2800)
+    return () => clearTimeout(t)
+  }, [special, onClose])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(10,16,13,0.65)',
+        backdropFilter: 'blur(5px)',
+        WebkitBackdropFilter: 'blur(5px)',
+        padding: 24,
+      }}
+    >
+      {/* Confetti */}
+      {pieces.map((p, i) => (
+        <span key={i} style={{
+          position: 'absolute',
+          top: 0,
+          left: `${p.left}%`,
+          width: p.w,
+          height: p.w * 0.45,
+          background: p.color,
+          borderRadius: 1,
+          transform: `rotate(${p.rot}deg)`,
+          animation: `confettiFall ${p.dur}s ease-in ${p.delay}s forwards`,
+          opacity: 0,
+          pointerEvents: 'none',
+        }} />
+      ))}
+
+      <div
+        className="pop-in"
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 340,
+          background: 'linear-gradient(165deg, #233A2E 0%, #1A2820 100%)',
+          border: '1px solid rgba(201,168,76,0.5)',
+          borderRadius: 20,
+          padding: '28px 24px 22px',
+          textAlign: 'center',
+          boxShadow: '0 12px 48px rgba(0,0,0,0.5), 0 0 40px rgba(201,168,76,0.12)',
+        }}
+      >
+        <div style={{
+          fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.62rem', fontWeight: 700,
+          letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8FA396', marginBottom: 6,
+        }}>
+          {cel.foodName} logged
+        </div>
+
+        {/* XP headline */}
+        <div className="tnum" style={{
+          fontFamily: 'var(--font-playfair), serif', fontSize: '2.6rem', fontWeight: 700,
+          color: '#E6C24A', lineHeight: 1.05,
+          textShadow: '0 0 24px rgba(230,194,74,0.4)',
+        }}>
+          +{cel.xp} XP
+        </div>
+
+        {/* Meter movement */}
+        {cel.meterDelta !== 0 && (
+          <div className="tnum" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
+            padding: '5px 14px', borderRadius: 999,
+            background: cel.meterDelta > 0 ? 'rgba(74,222,128,0.1)' : 'rgba(212,113,74,0.1)',
+            border: `1px solid ${cel.meterDelta > 0 ? 'rgba(74,222,128,0.35)' : 'rgba(212,113,74,0.35)'}`,
+            color: cel.meterDelta > 0 ? '#4ADE80' : '#D4714A',
+            fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.74rem', fontWeight: 700,
+          }}>
+            {cel.meterDelta > 0 ? '▲' : '▼'} Keto meter {cel.meterDelta > 0 ? '+' : ''}{cel.meterDelta}%
+          </div>
+        )}
+
+        {/* Level-up */}
+        {cel.newTitle && (
+          <div style={{
+            marginTop: 14, padding: '10px 14px', borderRadius: 12,
+            background: 'rgba(230,194,74,0.1)', border: '1px solid rgba(230,194,74,0.35)',
+          }}>
+            <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8FA396', fontFamily: 'var(--font-lato), sans-serif' }}>
+              Level up
+            </div>
+            <div style={{ fontFamily: 'var(--font-playfair), serif', fontSize: '1.15rem', fontWeight: 700, color: '#E6C24A', marginTop: 2 }}>
+              👑 {cel.newTitle}
+            </div>
+          </div>
+        )}
+
+        {/* Badge unlocks */}
+        {cel.newBadges.map((b, i) => (
+          <div key={i} style={{
+            marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '8px 14px', borderRadius: 12,
+            background: 'rgba(74,222,128,0.07)', border: '1px solid rgba(74,222,128,0.3)',
+          }}>
+            <span style={{ fontSize: '1.2rem' }}>{b.icon}</span>
+            <span style={{ fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.8rem', fontWeight: 700, color: '#4ADE80' }}>
+              Badge unlocked — {b.name}
+            </span>
+          </div>
+        ))}
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button
+            onClick={onClose}
+            className="pressable"
+            style={{
+              flex: '1 1 0%', padding: '11px 0', borderRadius: 10,
+              background: '#2C4036', color: '#F3EEE2', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.72rem', fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+            }}
+          >
+            Keep logging
+          </button>
+          <Link
+            href="/"
+            className="pressable"
+            style={{
+              flex: '1 1 0%', padding: '11px 0', borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'linear-gradient(135deg, #C9A84C, #E6C24A)', color: '#14201A',
+              textDecoration: 'none',
+              fontFamily: 'var(--font-lato), sans-serif', fontSize: '0.72rem', fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+            }}
+          >
+            View journey
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
